@@ -1,5 +1,9 @@
 const ThermostatAccessory = require('./ThermostatAccessory');
 
-module.exports = (api) => {
-	api.registerAccessory('HomebridgeThermostat', ThermostatAccessory);
+module.exports = (homebridge) => {
+	homebridge.registerAccessory(
+		'homebridge-http-thermostat-dummy',
+		'ThermostatAccessory',
+		ThermostatAccessory
+	);
 };

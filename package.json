@@ -1,6 +1,6 @@
 {
 	"name": "homebridge-http-thermostat-dummy",
-	"version": "1.0.2",
+	"version": "1.0.3",
 	"description": "A Homebridge plugin for a thermostat accessory.",
 	"main": "index.js",
 	"keywords": ["homebridge-plugin", "thermostat", "homebridge"],

@@ -1,14 +1,14 @@
 const https = require('https');
 
 class ThermostatAccessory {
-	constructor(log, config) {
-		const Service = homebridge.hap.Service;
-		const Characteristic = homebridge.hap.Characteristic;
+	constructor(log, config, api) {
+		const Service = api.hap.Service;
+		const Characteristic = api.hap.Characteristic;
 		this.log = log;
 		this.name = config.name || 'Thermostat';
 		this.apiGetTemperature = config.apiGetTemperature;
 		this.apiSetTemperature = config.apiSetTemperature;
-		this.apiGetToken = config.apiGetToken;
+		this.bearerTokenGet = config.apiGetToken;
 
 		this.currentTemperature = 20;
 		this.targetTemperature = 22;
@@ -54,7 +54,7 @@ class ThermostatAccessory {
 	async getCurrentTemperature(callback) {
 		// Parse the API URL
 		const url = new URL(this.apiGetTemperature);
-	
+
 		// Define request options
 		const options = {
 			hostname: url.hostname,
@@ -65,15 +65,15 @@ class ThermostatAccessory {
 			},
 			port: url.port || 80, // Default to port 80 if not specified
 		};
-	
+
 		try {
 			// Make the HTTP request using a custom makeHttpRequest method
 			const response = await this.makeHttpRequest(options);
-	
+
 			// Assuming the temperature is in response.temperature
 			this.currentTemperature = response.temperature || 'Unknown';
 			this.log(`Fetched current temperature: ${this.currentTemperature}`);
-	
+
 			// Call the callback with the temperature
 			callback(null, this.currentTemperature);
 		} catch (error) {
@@ -90,18 +90,18 @@ class ThermostatAccessory {
 
 	async setTargetTemperature(value, callback) {
 		this.targetTemperature = value;
-	
+
 		const url = new URL(this.apiSetTemperature);
 		url.pathname = '/setTemperatureDelay';
 		url.searchParams.append('temp', value);
-	
+
 		const options = {
 			hostname: url.hostname,
 			path: url.pathname + url.search, // Combines path and query string
 			method: 'GET',
 			port: url.port || 80, // Add port if needed
 		};
-	
+
 		try {
 			await this.makeHttpRequest(options); // No body is needed for GET
 			this.log(`Set target temperature to: ${this.targetTemperature}`);
