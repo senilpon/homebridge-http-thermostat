@@ -1,12 +1,14 @@
 const https = require('https');
-const { Service, Characteristic } = require('hap-nodejs');
 
 class ThermostatAccessory {
 	constructor(log, config) {
+		const Service = homebridge.hap.Service;
+		const Characteristic = homebridge.hap.Characteristic;
 		this.log = log;
 		this.name = config.name || 'Thermostat';
 		this.apiGetTemperature = config.apiGetTemperature;
 		this.apiSetTemperature = config.apiSetTemperature;
+		this.apiGetToken = config.apiGetToken;
 
 		this.currentTemperature = 20;
 		this.targetTemperature = 22;
@@ -45,24 +47,37 @@ class ThermostatAccessory {
 			if (data) {
 				req.write(data);
 			}
-
 			req.end();
 		});
 	}
 
 	async getCurrentTemperature(callback) {
+		// Parse the API URL
+		const url = new URL(this.apiGetTemperature);
+	
+		// Define request options
 		const options = {
-			hostname: new URL(this.apiEndpoint).hostname,
-			//path: '/current-temperature',
+			hostname: url.hostname,
+			path: url.pathname + url.search, // Combine path and query string
 			method: 'GET',
+			headers: {
+				'Authorization': `Bearer ${this.bearerTokenGet}`, // Include the token for authentication
+			},
+			port: url.port || 80, // Default to port 80 if not specified
 		};
-
+	
 		try {
+			// Make the HTTP request using a custom makeHttpRequest method
 			const response = await this.makeHttpRequest(options);
-			this.currentTemperature = response.temperature;
+	
+			// Assuming the temperature is in response.temperature
+			this.currentTemperature = response.temperature || 'Unknown';
 			this.log(`Fetched current temperature: ${this.currentTemperature}`);
+	
+			// Call the callback with the temperature
 			callback(null, this.currentTemperature);
 		} catch (error) {
+			// Log and handle the error
 			this.log(`Error fetching current temperature: ${error.message}`);
 			callback(error);
 		}
@@ -75,20 +90,20 @@ class ThermostatAccessory {
 
 	async setTargetTemperature(value, callback) {
 		this.targetTemperature = value;
-
+	
+		const url = new URL(this.apiSetTemperature);
+		url.pathname = '/setTemperatureDelay';
+		url.searchParams.append('temp', value);
+	
 		const options = {
-			hostname: new URL(this.apiEndpoint).hostname,
-			//path: '/set-temperature',
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-			},
+			hostname: url.hostname,
+			path: url.pathname + url.search, // Combines path and query string
+			method: 'GET',
+			port: url.port || 80, // Add port if needed
 		};
-
-		const data = JSON.stringify({ targetTemperature: value });
-
+	
 		try {
-			await this.makeHttpRequest(options, data);
+			await this.makeHttpRequest(options); // No body is needed for GET
 			this.log(`Set target temperature to: ${this.targetTemperature}`);
 			callback(null);
 		} catch (error) {
