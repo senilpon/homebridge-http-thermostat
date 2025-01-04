@@ -1,4 +1,4 @@
-const https = require('https');
+const https = require('http');
 
 class ThermostatAccessory {
 	constructor(log, config, api) {
@@ -11,7 +11,7 @@ class ThermostatAccessory {
 		this.bearerTokenGet = config.apiGetToken;
 
 		this.currentTemperature = 20;
-		this.targetTemperature = 22;
+		this.targetTemperature = 19;
 		this.temperatureDisplayUnits = 0;
 
 		this.service = new Service.Thermostat(this.name);
@@ -28,33 +28,33 @@ class ThermostatAccessory {
 
 	makeHttpRequest(options, data = null) {
 		return new Promise((resolve, reject) => {
-			const req = https.request(options, (res) => {
+			const req = http.request(options, (res) => { // Use http.request instead of https.request
 				let responseData = '';
 				res.on('data', (chunk) => {
 					responseData += chunk;
 				});
 				res.on('end', () => {
 					try {
-						resolve(JSON.parse(responseData));
+						resolve(JSON.parse(responseData)); // Parse the response if it's JSON
 					} catch (error) {
-						reject(error);
+						reject(error); // Handle any parsing errors
 					}
 				});
 			});
-
-			req.on('error', (error) => reject(error));
-
+	
+			req.on('error', (error) => reject(error)); // Reject the promise on any request error
+	
 			if (data) {
-				req.write(data);
+				req.write(data); // Write data to the request if provided (for POST requests)
 			}
-			req.end();
+			req.end(); // End the request
 		});
 	}
 
 	async getCurrentTemperature(callback) {
 		// Parse the API URL
 		const url = new URL(this.apiGetTemperature);
-
+	
 		// Define request options
 		const options = {
 			hostname: url.hostname,
@@ -65,15 +65,22 @@ class ThermostatAccessory {
 			},
 			port: url.port || 80, // Default to port 80 if not specified
 		};
-
+	
 		try {
 			// Make the HTTP request using a custom makeHttpRequest method
 			const response = await this.makeHttpRequest(options);
-
-			// Assuming the temperature is in response.temperature
-			this.currentTemperature = response.temperature || 'Unknown';
-			this.log(`Fetched current temperature: ${this.currentTemperature}`);
-
+	
+			// Find the temperature value from the response data
+			const temperatureData = response.data.find(item => item.name === 'temp');
+			
+			if (temperatureData) {
+				this.currentTemperature = temperatureData.value || 'Unknown'; // Set the temperature value
+				this.log(`Fetched current temperature: ${this.currentTemperature}`);
+			} else {
+				this.currentTemperature = 'Unknown'; // If no temperature data found
+				this.log('Temperature data not found');
+			}
+	
 			// Call the callback with the temperature
 			callback(null, this.currentTemperature);
 		} catch (error) {
