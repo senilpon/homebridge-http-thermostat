@@ -1,0 +1,24 @@
+{
+	"name": "homebridge-thermostat",
+	"version": "1.0.0",
+	"description": "A Homebridge plugin for a thermostat accessory.",
+	"main": "index.js",
+	"keywords": ["homebridge-plugin", "thermostat", "homebridge"],
+	"author": "Pontus Nilsson",
+	"license": "MIT",
+	"engines": {
+		"node": ">=14.17.0",
+		"homebridge": ">=1.3.0"
+	},
+	"dependencies": {
+		"hap-nodejs": "^0.9.8"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/senilpon/homebridge-thermostat"
+	},
+	"homebridge": {
+		"pluginType": "accessory",
+		"accessory": "HomebridgeThermostat"
+	}
+}
