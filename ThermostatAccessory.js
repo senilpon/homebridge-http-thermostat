@@ -1,4 +1,4 @@
-const https = require('http');
+const http = require('http'); // Use the 'http' module for GET requests
 
 class ThermostatAccessory {
 	constructor(log, config, api) {
@@ -26,9 +26,10 @@ class ThermostatAccessory {
 			.on('set', this.setTargetTemperature.bind(this));
 	}
 
-	makeHttpRequest(options, data = null) {
+	// Simplified version for GET requests only
+	makeHttpRequest(options) {
 		return new Promise((resolve, reject) => {
-			const req = http.request(options, (res) => { // Use http.request instead of https.request
+			const req = http.request(options, (res) => {
 				let responseData = '';
 				res.on('data', (chunk) => {
 					responseData += chunk;
@@ -41,21 +42,17 @@ class ThermostatAccessory {
 					}
 				});
 			});
-	
+
 			req.on('error', (error) => reject(error)); // Reject the promise on any request error
-	
-			if (data) {
-				req.write(data); // Write data to the request if provided (for POST requests)
-			}
-			req.end(); // End the request
+			req.end(); // End the request (GET requests don't need to send data)
 		});
 	}
 
+	// Fetch current temperature using GET request
 	async getCurrentTemperature(callback) {
-		// Parse the API URL
 		const url = new URL(this.apiGetTemperature);
-	
-		// Define request options
+
+		// Define request options for GET request
 		const options = {
 			hostname: url.hostname,
 			path: url.pathname + url.search, // Combine path and query string
@@ -63,13 +60,13 @@ class ThermostatAccessory {
 			headers: {
 				'Authorization': `Bearer ${this.bearerTokenGet}`, // Include the token for authentication
 			},
-			port: url.port || 80, // Default to port 80 if not specified
+			port: url.port || 80, // Default to port 80 if using HTTP
 		};
-	
+
 		try {
-			// Make the HTTP request using a custom makeHttpRequest method
+			// Make the HTTP request using the simplified makeHttpRequest method
 			const response = await this.makeHttpRequest(options);
-	
+
 			// Find the temperature value from the response data
 			const temperatureData = response.data.find(item => item.name === 'temp');
 			
@@ -80,7 +77,7 @@ class ThermostatAccessory {
 				this.currentTemperature = 'Unknown'; // If no temperature data found
 				this.log('Temperature data not found');
 			}
-	
+
 			// Call the callback with the temperature
 			callback(null, this.currentTemperature);
 		} catch (error) {
@@ -90,11 +87,13 @@ class ThermostatAccessory {
 		}
 	}
 
+	// Return target temperature
 	getTargetTemperature(callback) {
 		this.log(`Returning target temperature: ${this.targetTemperature}`);
 		callback(null, this.targetTemperature);
 	}
 
+	// Set target temperature (GET request with query string)
 	async setTargetTemperature(value, callback) {
 		this.targetTemperature = value;
 
@@ -106,7 +105,7 @@ class ThermostatAccessory {
 			hostname: url.hostname,
 			path: url.pathname + url.search, // Combines path and query string
 			method: 'GET',
-			port: url.port || 80, // Add port if needed
+			port: url.port || 80, // Default to port 80 if using HTTP
 		};
 
 		try {
@@ -119,6 +118,7 @@ class ThermostatAccessory {
 		}
 	}
 
+	// Return the service
 	getServices() {
 		return [this.service];
 	}
