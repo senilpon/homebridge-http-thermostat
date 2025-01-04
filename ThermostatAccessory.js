@@ -51,7 +51,7 @@ class ThermostatAccessory {
 	// Fetch current temperature using GET request
 	async getCurrentTemperature(callback) {
 		const url = new URL(this.apiGetTemperature);
-
+	
 		// Define request options for GET request
 		const options = {
 			hostname: url.hostname,
@@ -62,22 +62,31 @@ class ThermostatAccessory {
 			},
 			port: url.port || 80, // Default to port 80 if using HTTP
 		};
-
+	
 		try {
 			// Make the HTTP request using the simplified makeHttpRequest method
 			const response = await this.makeHttpRequest(options);
-
-			// Find the temperature value from the response data
-			const temperatureData = response.data.find(item => item.name === 'temp');
-			
-			if (temperatureData) {
-				this.currentTemperature = temperatureData.value || 'Unknown'; // Set the temperature value
-				this.log(`Fetched current temperature: ${this.currentTemperature}`);
+	
+			// Log the full response for debugging
+			this.log('API Response:', JSON.stringify(response, null, 2));
+	
+			// Ensure the response contains the 'data' array
+			if (response.data && Array.isArray(response.data)) {
+				// Find the object where 'name' is 'temp'
+				const temperatureData = response.data.find(item => item.name === 'temp');
+				
+				if (temperatureData) {
+					this.currentTemperature = temperatureData.value || 'Unknown'; // Set the temperature value
+					this.log(`Fetched current temperature: ${this.currentTemperature}`);
+				} else {
+					this.currentTemperature = 'Unknown'; // If 'temp' data is not found
+					this.log('Temperature data not found');
+				}
 			} else {
-				this.currentTemperature = 'Unknown'; // If no temperature data found
-				this.log('Temperature data not found');
+				this.currentTemperature = 'Unknown'; // If 'data' is not in expected format
+				this.log('Invalid data format or no data found');
 			}
-
+	
 			// Call the callback with the temperature
 			callback(null, this.currentTemperature);
 		} catch (error) {
