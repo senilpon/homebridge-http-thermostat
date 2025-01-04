@@ -5,7 +5,8 @@ class ThermostatAccessory {
 	constructor(log, config) {
 		this.log = log;
 		this.name = config.name || 'Thermostat';
-		this.apiEndpoint = config.apiEndpoint || 'https://example.com/api/thermostat';
+		this.apiGetTemperature = config.apiGetTemperature;
+		this.apiSetTemperature = config.apiSetTemperature;
 
 		this.currentTemperature = 20;
 		this.targetTemperature = 22;
@@ -52,7 +53,7 @@ class ThermostatAccessory {
 	async getCurrentTemperature(callback) {
 		const options = {
 			hostname: new URL(this.apiEndpoint).hostname,
-			path: '/current-temperature',
+			//path: '/current-temperature',
 			method: 'GET',
 		};
 
@@ -77,7 +78,7 @@ class ThermostatAccessory {
 
 		const options = {
 			hostname: new URL(this.apiEndpoint).hostname,
-			path: '/set-temperature',
+			//path: '/set-temperature',
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
