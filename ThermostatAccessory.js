@@ -11,8 +11,6 @@ class ThermostatAccessory {
 		this.apiSetTemperature = config.apiSetTemperature;
 		this.bearerTokenGet = config.apiGetToken;
 
-		this.service = new Service.Thermostat(this.name);
-
 		this.heatingOptions = {
 			0: 'Off',
 			1: 'Heat',
@@ -20,11 +18,13 @@ class ThermostatAccessory {
 			//3: 'Auto',
 		}
 
-		storage.initSync();
-		const savedState = storage.getItemSync(`thermostat_${this.name}`) || {};
-		this.currentTemperature = savedState.currentTemperature || 20;
-		this.targetTemperature = savedState.targetTemperature || 19;
-		this.targetHeatingCoolingState = savedState.targetHeatingCoolingState || Characteristic.targetHeatingCoolingState.OFF;
+		this.currentTemperature = 20; // Default value
+        this.targetTemperature = 19; // Default value
+        this.temperatureDisplayUnits = 0;
+
+		this.initStorage();
+
+		this.service = new Service.Thermostat(this.name);
 
 		this.service
 			.getCharacteristic(Characteristic.CurrentTemperature)
@@ -39,6 +39,16 @@ class ThermostatAccessory {
 			.getCharacteristic(Characteristic.targetHeatingCoolingState)
 			.on('get', this.getTargetHeatingCoolingState.bind(this))
 			.on('set', this.setTargetHeatingCoolingState.bind(this));
+	}
+
+	async initStorage() {
+		await storage.init();
+
+		this.currentTemperature = await storage.getItem('currentTemperature') || 20;
+		this.targetTemperature = await storage.getItem('targetTemperature') || 19;
+		this.targetHeatingCoolingState = await storage.getItem('targetHeatingCoolingState') || Characteristic.targetHeatingCoolingState.OFF;
+
+		this.log(`Initialized storage with Current: ${this.currentTemperature}, Target: ${this.targetTemperature}`);
 	}
 
 	// Fetch current temperature using GET request
@@ -131,14 +141,13 @@ class ThermostatAccessory {
 		callback(null);
 	}
 
-	saveState() {
-		const state = {
-			currentTemperature: this.currentTemperature,
-			targetTemperature: this.targetTemperature,
-			targetHeatingCoolingState: this.targetHeatingCoolingState
-		};
-		storage.setitemsync(`thermostat_${this.name}`, state);
-		this.log('State saved:', JSON.stringify(state));
+	async saveState() {
+
+		await storage.setItem('currentTemperature', this.currentTemperature);
+		await storage.setItem('targetTemperature', this.targetTemperature);
+		await storage.setItem('targetHeatingCoolingState', this.targetHeatingCoolingState);
+
+		this.log(`State saved - Temp: ${this.currentTemperature}, Target: ${this.targetTemperature}, State: ${this.targetHeatingCoolingState}`);
 	}
 
 	// Simplified version for GET requests only
