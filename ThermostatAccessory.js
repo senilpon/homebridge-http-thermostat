@@ -128,7 +128,7 @@ class ThermostatAccessory {
 		this.saveState();
 
 		const url = new URL(this.apiSetTemperature);
-		url.searchParams.append('temp', value);
+		url.searchParams.set('temp', value);
 
 		const options = {
 			hostname: url.hostname,
