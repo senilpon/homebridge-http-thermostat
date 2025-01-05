@@ -1,4 +1,5 @@
 const http = require('http'); // Use the 'http' module for GET requests
+const storage = require('node-persist'); // Use 'node-persist' for local storage
 
 class ThermostatAccessory {
 	constructor(log, config, api) {
@@ -10,11 +11,20 @@ class ThermostatAccessory {
 		this.apiSetTemperature = config.apiSetTemperature;
 		this.bearerTokenGet = config.apiGetToken;
 
-		this.currentTemperature = 20;
-		this.targetTemperature = 19;
-		this.temperatureDisplayUnits = 0;
-
 		this.service = new Service.Thermostat(this.name);
+
+		this.heatingOptions = {
+			0: 'Off',
+			1: 'Heat',
+			//2: 'Cool',
+			//3: 'Auto',
+		}
+
+		storage.initSync();
+		const savedState = storage.getItemSync(`thermostat_${this.name}`) || {};
+		this.currentTemperature = savedState.currentTemperature || 20;
+		this.targetTemperature = savedState.targetTemperature || 19;
+		this.targetHeatingCoolingState = savedState.targetHeatingCoolingState || Characteristic.targetHeatingCoolingState.OFF;
 
 		this.service
 			.getCharacteristic(Characteristic.CurrentTemperature)
@@ -24,28 +34,11 @@ class ThermostatAccessory {
 			.getCharacteristic(Characteristic.TargetTemperature)
 			.on('get', this.getTargetTemperature.bind(this))
 			.on('set', this.setTargetTemperature.bind(this));
-	}
 
-	// Simplified version for GET requests only
-	makeHttpRequest(options) {
-		return new Promise((resolve, reject) => {
-			const req = http.request(options, (res) => {
-				let responseData = '';
-				res.on('data', (chunk) => {
-					responseData += chunk;
-				});
-				res.on('end', () => {
-					try {
-						resolve(JSON.parse(responseData)); // Parse the response if it's JSON
-					} catch (error) {
-						reject(error); // Handle any parsing errors
-					}
-				});
-			});
-
-			req.on('error', (error) => reject(error)); // Reject the promise on any request error
-			req.end(); // End the request (GET requests don't need to send data)
-		});
+		this.service
+			.getCharacteristic(Characteristic.targetHeatingCoolingState)
+			.on('get', this.getTargetHeatingCoolingState.bind(this))
+			.on('set', this.setTargetHeatingCoolingState.bind(this));
 	}
 
 	// Fetch current temperature using GET request
@@ -105,14 +98,14 @@ class ThermostatAccessory {
 	// Set target temperature (GET request with query string)
 	async setTargetTemperature(value, callback) {
 		this.targetTemperature = value;
+		this.saveState();
 
 		const url = new URL(this.apiSetTemperature);
-		url.pathname = '/setTemperatureDelay';
 		url.searchParams.append('temp', value);
 
 		const options = {
 			hostname: url.hostname,
-			path: url.pathname + url.search, // Combines path and query string
+			path: url.search, // Combines path and query string
 			method: 'GET',
 			port: url.port || 80, // Default to port 80 if using HTTP
 		};
@@ -125,6 +118,53 @@ class ThermostatAccessory {
 			this.log(`Error setting target temperature: ${error.message}`);
 			callback(error);
 		}
+	}
+
+	getTargetHeatingCoolingState(callback) {
+		this.log(`Returning target heating/cooling state: ${this.heatingOptions[this.targetHeatingCoolingState]}`);
+		callback(null, this.targetHeatingCoolingState);
+	}
+
+	setTargetHeatingCoolingState(value, callback) {
+		this.targetHeatingCoolingState.targetHeatingCoolingState = value;
+		this.saveState();
+		callback(null);
+	}
+
+	saveState() {
+		const state = {
+			currentTemperature: this.currentTemperature,
+			targetTemperature: this.targetTemperature,
+			targetHeatingCoolingState: this.targetHeatingCoolingState
+		};
+		storage.setitemsync(`thermostat_${this.name}`, state);
+		this.log('State saved:', JSON.stringify(state));
+	}
+
+	// Simplified version for GET requests only
+	makeHttpRequest(options) {
+		return new Promise((resolve, reject) => {
+			const req = http.request(options, (res) => {
+				let responseData = '';
+				res.on('data', (chunk) => {
+					responseData += chunk;
+				});
+				res.on('end', () => {
+					try {
+						// Attempt to parse the response as JSON
+						const parsedData = JSON.parse(responseData);
+						resolve(parsedData);
+					} catch (error) {
+						// If parsing fails, resolve with raw response instead
+						this.log(`Non-JSON response received: ${responseData}`);
+						reject(new Error(`Invalid JSON: ${responseData}`));
+					}
+				});
+			});
+
+			req.on('error', (error) => reject(error)); // Reject the promise on any request error
+			req.end(); // End the request (GET requests don't need to send data)
+		});
 	}
 
 	// Return the service
