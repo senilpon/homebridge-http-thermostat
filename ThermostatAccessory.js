@@ -132,18 +132,27 @@ class ThermostatAccessory {
 
 		const options = {
 			hostname: url.hostname,
-			path: url.search, // Combines path and query string
+			path: url.pathname + url.search,
 			method: 'GET',
-			port: url.port || 80, // Default to port 80 if using HTTP
+			port: url.port || 80,
+			headers: {
+				'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', // Mimic browser
+			},
 		};
-
+		this.log(`Requesting URL: ${url.href}`);
+		this.log(`Request options: ${JSON.stringify(options)}`);
 		try {
-			await this.makeHttpRequest(options); // No body is needed for GET
+			const response = await this.makeHttpRequest(options); // No body is needed for GET
+
+			if (response.error) {
+				this.log(`API Error: ${response.error}`);
+				throw new Error(response.error);
+			}
+
 			this.log(`Set target temperature to: ${this.targetTemperature}`);
 			callback(null);
 		} catch (error) {
 			this.log(`Error setting target temperature: ${error.message}`);
-			this.log(`url is ${url.href}`);
 			callback(error);
 		}
 	}
