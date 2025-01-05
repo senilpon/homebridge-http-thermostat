@@ -40,8 +40,8 @@ class ThermostatAccessory {
 			.on('get', this.getTargetTemperature.bind(this))
 			.on('set', this.setTargetTemperature.bind(this));
 
-		this.service
-			.getCharacteristic(Characteristic.targetHeatingCoolingState)
+			this.service
+			.getCharacteristic(Characteristic.TargetHeatingCoolingState)
 			.on('get', this.getTargetHeatingCoolingState.bind(this))
 			.on('set', this.setTargetHeatingCoolingState.bind(this));
 	}
