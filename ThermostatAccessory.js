@@ -143,6 +143,7 @@ class ThermostatAccessory {
 			callback(null);
 		} catch (error) {
 			this.log(`Error setting target temperature: ${error.message}`);
+			this.log(`url is ${url.href}`);
 			callback(error);
 		}
 	}
@@ -174,6 +175,9 @@ class ThermostatAccessory {
 		return new Promise((resolve, reject) => {
 			const req = http.request(options, (res) => {
 				let responseData = '';
+				// Log status and headers for debugging
+				this.log(`HTTP Status: ${res.statusCode}`);
+				this.log(`HTTP Headers: ${JSON.stringify(res.headers)}`);
 				res.on('data', (chunk) => {
 					responseData += chunk;
 				});
