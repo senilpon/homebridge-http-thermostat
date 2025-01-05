@@ -15,8 +15,8 @@ class ThermostatAccessory {
 		this.bearerTokenGet = config.apiGetToken;
 
 		this.heatingOptions = {
-			0: 'Off',
-			1: 'Heat',
+			0: 'OFF',
+			1: 'HEAT',
 			//2: 'Cool',
 			//3: 'Auto',
 		}
@@ -40,7 +40,7 @@ class ThermostatAccessory {
 			.on('get', this.getTargetTemperature.bind(this))
 			.on('set', this.setTargetTemperature.bind(this));
 
-			this.service
+		this.service
 			.getCharacteristic(Characteristic.TargetHeatingCoolingState)
 			.setProps({
 				validValues: [
