@@ -20,7 +20,7 @@ class ThermostatAccessory {
 			//2: 'Cool',
 			//3: 'Auto',
 		}
-
+		this.log('Characteristic.TargetHeatingCoolingState:', Characteristic.TargetHeatingCoolingState);
 		this.currentTemperature = 20; // Default value
         this.targetTemperature = 19; // Default value
 		this.targetHeatingCoolingState = 0; // Default to 'Off'
