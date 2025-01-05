@@ -42,6 +42,12 @@ class ThermostatAccessory {
 
 			this.service
 			.getCharacteristic(Characteristic.TargetHeatingCoolingState)
+			.setProps({
+				validValues: [
+					Characteristic.TargetHeatingCoolingState.OFF,
+					Characteristic.TargetHeatingCoolingState.HEAT
+				],
+			})
 			.on('get', this.getTargetHeatingCoolingState.bind(this))
 			.on('set', this.setTargetHeatingCoolingState.bind(this));
 	}
