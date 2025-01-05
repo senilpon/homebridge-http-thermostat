@@ -3,6 +3,9 @@ const storage = require('node-persist'); // Use 'node-persist' for local storage
 
 class ThermostatAccessory {
 	constructor(log, config, api) {
+		if ( !api || !api.hap) {
+			throw new Error('Homebridge API is not initialized. Check your setup.');
+		}
 		const Service = api.hap.Service;
 		const Characteristic = api.hap.Characteristic;
 		this.log = log;
@@ -20,8 +23,10 @@ class ThermostatAccessory {
 
 		this.currentTemperature = 20; // Default value
         this.targetTemperature = 19; // Default value
+		this.targetHeatingCoolingState = 0; // Default to 'Off'
         this.temperatureDisplayUnits = 0;
 
+		this.storageInitialized = false;
 		this.initStorage();
 
 		this.service = new Service.Thermostat(this.name);
@@ -42,13 +47,19 @@ class ThermostatAccessory {
 	}
 
 	async initStorage() {
-		await storage.init();
+		try {
+			await storage.init();
+			this.currentTemperature = (await storage.getItem('currentTemperature')) || 20;
+			this.targetTemperature = (await storage.getItem('targetTemperature')) || 19;
+			this.targetHeatingCoolingState = (await storage.getItem('targetHeatingCoolingState')) || 0; // Default to 'Off'
 
-		this.currentTemperature = await storage.getItem('currentTemperature') || 20;
-		this.targetTemperature = await storage.getItem('targetTemperature') || 19;
-		this.targetHeatingCoolingState = await storage.getItem('targetHeatingCoolingState') || Characteristic.targetHeatingCoolingState.OFF;
-
-		this.log(`Initialized storage with Current: ${this.currentTemperature}, Target: ${this.targetTemperature}`);
+			this.storageInitialized = true; // Mark storage as initialized
+			this.log(
+				`Initialized storage: Current Temp: ${this.currentTemperature}, Target Temp: ${this.targetTemperature}, State: ${this.targetHeatingCoolingState}`
+			);
+		} catch (error) {
+			this.log(`Error initializing storage: ${error.message}`);
+		}
 	}
 
 	// Fetch current temperature using GET request
@@ -135,19 +146,21 @@ class ThermostatAccessory {
 		callback(null, this.targetHeatingCoolingState);
 	}
 
-	setTargetHeatingCoolingState(value, callback) {
+	async setTargetHeatingCoolingState(value, callback) {
 		this.targetHeatingCoolingState.targetHeatingCoolingState = value;
-		this.saveState();
+		await this.saveState();
 		callback(null);
 	}
 
+	// Save state to persistent storage
 	async saveState() {
+		if (!this.storageInitialized) return;
 
 		await storage.setItem('currentTemperature', this.currentTemperature);
 		await storage.setItem('targetTemperature', this.targetTemperature);
 		await storage.setItem('targetHeatingCoolingState', this.targetHeatingCoolingState);
 
-		this.log(`State saved - Temp: ${this.currentTemperature}, Target: ${this.targetTemperature}, State: ${this.targetHeatingCoolingState}`);
+		this.log('State saved');
 	}
 
 	// Simplified version for GET requests only
