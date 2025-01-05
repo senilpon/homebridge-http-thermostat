@@ -147,7 +147,7 @@ class ThermostatAccessory {
 	}
 
 	async setTargetHeatingCoolingState(value, callback) {
-		this.targetHeatingCoolingState.targetHeatingCoolingState = value;
+		this.targetHeatingCoolingState = value;
 		await this.saveState();
 		callback(null);
 	}
