@@ -13,12 +13,12 @@ class ThermostatAccessory {
 		this.apiGetTemperature = config.apiGetTemperature;
 		this.apiSetTemperature = config.apiSetTemperature;
 		this.bearerTokenGet = config.apiGetToken;
+		this.apiSetOFF = config.apiSetOFF;
 
+		//OFF, HEAT, COOL, AUTO
 		this.heatingOptions = {
 			0: 'OFF',
-			1: 'HEAT',
-			//2: 'Cool',
-			//3: 'Auto',
+			1: 'HEAT'
 		}
 		this.log('Characteristic.TargetHeatingCoolingState:', Characteristic.TargetHeatingCoolingState);
 		this.currentTemperature = 20; // Default value
@@ -164,6 +164,37 @@ class ThermostatAccessory {
 
 	async setTargetHeatingCoolingState(value, callback) {
 		this.targetHeatingCoolingState = value;
+
+		if (value === "OFF") {
+			this.log('Setting target heating/cooling state to: OFF');
+
+			const url = new URL(this.apiSetOFF);
+
+			const options = {
+				hostname: url.hostname,
+				method: 'GET',
+				port: url.port || 80,
+				headers: {
+					'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', // Mimic browser
+				},
+			};
+			this.log(`Requesting URL: ${url.href}`);
+			this.log(`Request options: ${JSON.stringify(options)}`);
+			try {
+				const response = await this.makeHttpRequest(options); // No body is needed for GET
+
+				if (response.error) {
+					this.log(`API Error: ${response.error}`);
+					throw new Error(response.error);
+				}
+
+				this.log(`Set heating/cooling to: ${this.targetHeatingCoolingState}`);
+				callback(null);
+			} catch (error) {
+				this.log(`Error setting heating/cooling temperature: ${error.message}`);
+				callback(error);
+			}
+		}
 		await this.saveState();
 		callback(null);
 	}
