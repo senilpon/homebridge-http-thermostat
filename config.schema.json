@@ -1,52 +1,37 @@
 {
     "pluginAlias": "ThermostatAccessory",
     "pluginType": "accessory",
-    "schema": [
-      {
-        "type": "input",
-        "title": "Name",
-        "description": "The name of your thermostat accessory.",
-        "required": true,
-        "default": "Thermostat",
-        "placeholder": "Thermostat",
-        "key": "name"
-      },
-      {
-        "type": "input",
-        "title": "API Get Temperature URL",
-        "description": "The URL to fetch the current temperature.",
-        "required": true,
-        "placeholder": "http://yourURL.com/getTemperature",
-        "key": "apiGetTemperature"
-      },
-      {
-        "type": "input",
-        "title": "API Set Temperature URL",
-        "description": "The URL to set the target temperature.",
-        "required": true,
-        "placeholder": "http://yourURL.com/setTargetTemperature",
-        "key": "apiSetTemperature"
-      },
-      {
-        "type": "input",
-        "title": "API Set State OFF URL",
-        "description": "The URL to set the state to OFF.",
-        "required": true,
-        "placeholder": "http://yourURL.com/heatCoolingStateOFF",
-        "key": "apiSetOFF"
-      },
-      {
-        "type": "input",
-        "title": "Bearer Token",
-        "description": "The token used for API authentication (if required). This is for the getTemperature",
-        "required": false,
-        "placeholder": "Your Bearer Token",
-        "key": "apiGetToken"
-      },
-      {
-        "type": "static",
-        "title": "Information",
-        "content": "Configure your thermostat's settings to match the API endpoints for your device."
-      }
-    ]
-  }
+    "schema": {
+        "name": {
+            "type": "string",
+            "description": "The name of your thermostat accessory.",
+            "required": true,
+            "default": "Thermostat",
+            "placeholder": "Thermostat"
+        },
+        "apiGetTemperature": {
+            "type": "string",
+            "description": "The URL to fetch the current temperature.",
+            "required": true,
+            "placeholder": "http://yourURL.com/getTemperature"
+        },
+        "apiSetTemperature": {
+            "type": "string",
+            "description": "The URL to set the target temperature.",
+            "required": true,
+            "placeholder": "http://yourURL.com/setTargetTemperature"
+        },
+        "apiSetOFF": {
+            "type": "string",
+            "description": "The URL to set the state to OFF.",
+            "required": true,
+            "placeholder": "http://yourURL.com/heatCoolingStateOFF"
+        },
+        "apiGetToken" : {
+            "type": "string",
+            "description": "The token used for API authentication (if required). This is for the getTemperature",
+            "required": false,
+            "placeholder": "Your Bearer Token"
+        }
+    }
+}
