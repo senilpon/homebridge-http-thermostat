@@ -164,9 +164,9 @@ class ThermostatAccessory {
 
 	async setTargetHeatingCoolingState(value, callback) {
 		this.targetHeatingCoolingState = value;
-		this.log(`The new status is ${value}`);
+		this.log(`The new heating/cooling state is ${value}`);
 
-		if (value === "OFF") {
+		if (value === 0) {
 			this.log('Setting target heating/cooling state to: OFF');
 
 			const url = new URL(this.apiSetOFF);
