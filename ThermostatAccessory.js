@@ -170,13 +170,16 @@ class ThermostatAccessory {
 			this.log('Setting target heating/cooling state to: OFF');
 
 			const url = new URL(this.apiSetOFF);
+			url.searchParams.set('delay', 5);
 
 			const options = {
 				hostname: url.hostname,
+				path: url.pathname + url.search,
 				method: 'GET',
 				port: url.port || 80,
 				headers: {
 					'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', // Mimic browser
+					"Accept": "application/json" // Indicate the expected response format
 				},
 			};
 			this.log(`Requesting URL: ${url.href}`);
