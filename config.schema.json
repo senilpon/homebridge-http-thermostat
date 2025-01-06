@@ -1,7 +1,6 @@
 {
     "pluginAlias": "ThermostatAccessory",
-    "pluginType": "platform",
-    "singular": true,
+    "pluginType": "accessory",
     "schema": [
       {
         "type": "input",
