@@ -1,0 +1,58 @@
+{
+  "pluginAlias": "ThermostatAccessory",
+  "pluginType": "platform",
+  "singular": true,
+  "schema": [
+    {
+      "type": "input",
+      "title": "Name",
+      "description": "The name of your thermostat accessory.",
+      "required": true,
+      "default": "Thermostat",
+      "placeholder": "Thermostat"
+    },
+    {
+      "type": "input",
+      "title": "API Get Temperature URL",
+      "description": "The URL to fetch the current temperature.",
+      "required": true,
+      "placeholder": "http://yourURL.com/getTemperature"
+    },
+    {
+      "type": "input",
+      "title": "API Set Temperature URL",
+      "description": "The URL to set the target temperature.",
+      "required": true,
+      "placeholder": "http://yourURL.com/setTargetTemperature"
+    },
+    {
+        "type": "input",
+        "title": "API set state OFF URL",
+        "description": "The URL to set the target temperature.",
+        "required": true,
+        "placeholder": "http://yourURL.com/heatCoolingStateOFF"
+    },
+    {
+      "type": "input",
+      "title": "Bearer Token",
+      "description": "The token used for API authentication (if required). This is for the getTemperature",
+      "required": false,
+      "placeholder": "Your Bearer Token"
+    },
+    {
+      "type": "slider",
+      "title": "Default Target Temperature",
+      "description": "Set the default target temperature for the thermostat.",
+      "required": true,
+      "min": 10,
+      "max": 30,
+      "step": 1,
+      "default": 19
+    },
+    {
+      "type": "static",
+      "title": "Information",
+      "content": "Configure your thermostat's settings to match the API endpoints for your device."
+    }
+  ]
+}
