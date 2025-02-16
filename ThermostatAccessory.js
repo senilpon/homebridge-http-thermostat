@@ -14,12 +14,12 @@ class ThermostatAccessory {
 	
 		this.apiGetTemperature = config.apiGetTemperature;
 		this.apiSetTemperature = config.apiSetTemperature
-		this.apiSetTemperature = config.apiSetTemperature.url;
+		this.apiSetTemperatureUrl = config.apiSetTemperature.url;
 		this.apiSetTemperatureMethod = config.apiSetTemperature.method || 'POST';
 		this.apiSetTemperatureToken = config.apiSetTemperature.token || null;
 	
 		this.apiSetOFF = config.apiSetOFF.url;
-		this.apiSetOFFMethod = config.apiSetOFF.method || 'DELETE';
+		this.apiSetOFFMethod = config.apiSetOFF.method || 'POST';
 		this.apiSetOFFToken = config.apiSetOFF.token || null;
 	
 		this.apiGetToken = config.apiGetToken;
@@ -131,7 +131,7 @@ class ThermostatAccessory {
 		callback(null, this.targetTemperature);
 	}
 
-	// Set target temperature (GET request with query string)
+	// Set target temperature (GET request with query string) // Set target temperature (POST request with plain body)
 	async setTargetTemperature(value, callback) {
 		if (!this.apiSetTemperature || !this.apiSetTemperature.url) {
 			this.log("Error: apiSetTemperature URL is not set!");
@@ -142,8 +142,10 @@ class ThermostatAccessory {
 		const token = this.apiSetTemperature.token;
 		const bodyKey = this.apiSetTemperature.bodyKey || "temp"; // Default to "temp" if not set
 	
-		// Construct the body dynamically from config
-		const postData = JSON.stringify({ [bodyKey]: value });
+		// Wrap the body inside the 'plain' key
+		const postData = JSON.stringify({
+			plain: JSON.stringify({ [bodyKey]: value })
+		});
 	
 		this.log(`Setting temperature to ${value}°C using key '${bodyKey}' at ${url}`);
 	
@@ -152,7 +154,7 @@ class ThermostatAccessory {
 				url: url,
 				method: 'POST',
 				token: token,
-				body: postData
+				body: postData // Send the body with 'plain' key
 			});
 	
 			this.log(`Temperature set response: ${JSON.stringify(response, null, 2)}`);
