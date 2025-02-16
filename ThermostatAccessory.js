@@ -143,9 +143,7 @@ class ThermostatAccessory {
 		const bodyKey = this.apiSetTemperature.bodyKey || "temp"; // Default to "temp" if not set
 	
 		// Wrap the body inside the 'plain' key
-		const postData = JSON.stringify({
-			plain: JSON.stringify({ [bodyKey]: value })
-		});
+		const postData = value.toString();  
 	
 		this.log(`Setting temperature to ${value}°C using key '${bodyKey}' at ${url}`);
 	
