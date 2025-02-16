@@ -89,7 +89,7 @@ class ThermostatAccessory {
 			path: url.pathname + url.search, // Combine path and query string
 			method: 'GET',
 			headers: {
-				'Authorization': `Bearer ${this.bearerTokenGet}`, // Include the token for authentication
+				'Authorization': `Bearer ${this.apiGetToken}`, // Include the token for authentication
 			},
 			port: url.port || 80, // Default to port 80 if using HTTP
 		};
