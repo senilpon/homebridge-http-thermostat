@@ -205,38 +205,55 @@ class ThermostatAccessory {
 		this.log('State saved');
 	}
 
-
-    // Function to make HTTP requests
-	async makeHttpRequest({ url, method = 'GET', token = null, body = null }) {
-		const options = {
-			method: method,
-			headers: {
+	makeHttpRequest({ url, method = 'GET', token = null, body = null }) {
+		return new Promise((resolve, reject) => {
+			const parsedUrl = new URL(url);
+			const headers = {
 				'Content-Type': 'application/json',
-			},
-		};
+			};
 	
-		// Add token if provided
-		if (token) {
-			options.headers['Authorization'] = `Bearer ${token}`;
-		}
-	
-		// Add body if it's a POST request
-		if (body && method === 'POST') {
-			options.body = body; // Ensure body is a stringified JSON
-		}
-	
-		try {
-			const response = await fetch(url, options);
-	
-			if (!response.ok) {
-				throw new Error(`HTTP Error: ${response.status}`);
+			if (token) {
+				headers['Authorization'] = `Bearer ${token}`;
 			}
 	
-			return await response.json();
-		} catch (error) {
-			this.log(`makeHttpRequest Error: ${error.message}`);
-			throw error;
-		}
+			const options = {
+				hostname: parsedUrl.hostname,
+				path: parsedUrl.pathname + parsedUrl.search,
+				method,
+				headers,
+				port: parsedUrl.port || 80,
+			};
+	
+			const req = http.request(options, (res) => {
+				let responseData = '';
+	
+				this.log(`HTTP Status: ${res.statusCode}`);
+				this.log(`HTTP Headers: ${JSON.stringify(res.headers)}`);
+	
+				res.on('data', (chunk) => {
+					responseData += chunk;
+				});
+	
+				res.on('end', () => {
+					try {
+						const parsedData = JSON.parse(responseData);
+						resolve(parsedData);
+					} catch (error) {
+						this.log(`Non-JSON response received: ${responseData}`);
+						reject(new Error(`Invalid JSON: ${responseData}`));
+					}
+				});
+			});
+	
+			req.on('error', (error) => reject(error));
+	
+			// Send the body only if it's a POST request
+			if (method === 'POST' && body) {
+				req.write(body); // Send the body as stringified JSON
+			}
+	
+			req.end(); // End the request
+		});
 	}
 
 	// Return the service
