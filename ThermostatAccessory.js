@@ -44,7 +44,7 @@ class ThermostatAccessory {
 
 		this.service
 			.getCharacteristic(Characteristic.CurrentTemperature)
-			.on('get', this.getCurrentTemperature.bind(this));
+			.on('get', this.getCurrentTemperature ? this.getCurrentTemperature.bind(this) : (cb) => cb(null, 0)); // Fallback function
 
 		this.service
 			.getCharacteristic(Characteristic.TargetTemperature)
