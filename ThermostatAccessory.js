@@ -163,6 +163,41 @@ class ThermostatAccessory {
 		callback(null, this.targetHeatingCoolingState);
 	}
 
+	async setTargetHeatingCoolingState(value, callback) {
+		this.targetHeatingCoolingState = value;
+		this.log(`The new heating/cooling state is ${value}`);
+
+		if (value === 0) {
+			this.log('Turning off heating/cooling system');
+
+			const url = new URL(this.apiSetOFF);
+			url.searchParams.set('delay', 5);
+
+			try {
+				const response = await this.makeHttpRequest({
+					url: url.toString(),
+					method: this.apiSetOFFMethod, // Uses method from config.json
+					token: this.apiSetOFFToken // Uses token from config.json
+				});
+
+				if (response.error) {
+					this.log(`API Error: ${response.error}`);
+					throw new Error(response.error);
+				}
+
+				this.log(`Set heating/cooling to: ${this.targetHeatingCoolingState}`);
+				callback(null);
+			} catch (error) {
+				this.log(`Error setting heating/cooling state: ${error.message}`);
+				callback(error);
+			}
+		}
+
+		await this.saveState();
+		callback(null);
+	}
+
+
 	async setTemperature(value, callback) {
 		if (!this.apiSetTemperature || !this.apiSetTemperature.url) {
 			this.log("Error: apiSetTemperature URL is not set!");
