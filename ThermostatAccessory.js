@@ -13,6 +13,7 @@ class ThermostatAccessory {
 		this.name = config.name;
 	
 		this.apiGetTemperature = config.apiGetTemperature;
+		this.apiSetTemperature = config.apiSetTemperature
 		this.apiSetTemperature = config.apiSetTemperature.url;
 		this.apiSetTemperatureMethod = config.apiSetTemperature.method || 'POST';
 		this.apiSetTemperatureToken = config.apiSetTemperature.token || null;
