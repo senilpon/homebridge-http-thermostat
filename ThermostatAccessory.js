@@ -79,53 +79,48 @@ class ThermostatAccessory {
 		}
 	}
 
-	// Fetch current temperature using GET request
-	async getCurrentTemperature(callback) {
-		const url = new URL(this.apiGetTemperature);
-	
-		// Define request options for GET request
-		const options = {
-			hostname: url.hostname,
-			path: url.pathname + url.search, // Combine path and query string
-			method: 'GET',
-			headers: {
-				'Authorization': `Bearer ${this.apiGetToken}`, // Include the token for authentication
-			},
-			port: url.port || 80, // Default to port 80 if using HTTP
-		};
-	
-		try {
-			// Make the HTTP request using the simplified makeHttpRequest method
-			const response = await this.makeHttpRequest(options);
-	
-			// Log the full response for debugging
-			this.log('API Response:', JSON.stringify(response, null, 2));
-	
-			// Ensure the response contains the 'data' array
-			if (response.data && Array.isArray(response.data)) {
-				// Find the object where 'name' is 'temp'
-				const temperatureData = response.data.find(item => item.name === 'temp');
-				
-				if (temperatureData) {
-					this.currentTemperature = temperatureData.value || 'Unknown'; // Set the temperature value
-					this.log(`Fetched current temperature: ${this.currentTemperature}`);
-				} else {
-					this.currentTemperature = 'Unknown'; // If 'temp' data is not found
-					this.log('Temperature data not found');
-				}
-			} else {
-				this.currentTemperature = 'Unknown'; // If 'data' is not in expected format
-				this.log('Invalid data format or no data found');
-			}
-	
-			// Call the callback with the temperature
-			callback(null, this.currentTemperature);
-		} catch (error) {
-			// Log and handle the error
-			this.log(`Error fetching current temperature: ${error.message}`);
-			callback(error);
-		}
-	}
+    // Fetch current temperature using GET request
+    async getCurrentTemperature(callback) {
+        if (!this.apiGetTemperature) {
+            this.log("Error: apiGetTemperature is not set!");
+            return callback(new Error("apiGetTemperature is not defined"));
+        }
+
+        this.log(`Fetching temperature from: ${this.apiGetTemperature}`);
+
+        try {
+            const response = await this.makeHttpRequest({
+                url: this.apiGetTemperature,
+                method: 'GET',
+                token: this.apiGetToken
+            });
+
+            this.log("API Response:", JSON.stringify(response, null, 2));
+
+            // Ensure the response contains 'data' and it is an array
+            if (response.data && Array.isArray(response.data)) {
+                // Find the temperature data where 'name' is 'temp'
+                const temperatureData = response.data.find(item => item.name === 'temp');
+
+                if (temperatureData) {
+                    this.currentTemperature = parseFloat(temperatureData.value) || 0; // Ensure it's a number
+                    this.log(`Fetched current temperature: ${this.currentTemperature}°C`);
+                } else {
+                    this.currentTemperature = 0;
+                    this.log("Temperature data not found in response");
+                }
+            } else {
+                this.currentTemperature = 0;
+                this.log("Invalid data format or missing data field in API response");
+            }
+
+            // Return the fetched temperature
+            callback(null, this.currentTemperature);
+        } catch (error) {
+            this.log(`Error fetching current temperature: ${error.message}`);
+            callback(error);
+        }
+    }
 
 	// Return target temperature
 	getTargetTemperature(callback) {
@@ -211,50 +206,46 @@ class ThermostatAccessory {
 		this.log('State saved');
 	}
 
-	makeHttpRequest({ url, method = 'GET', token = null }) {
-		return new Promise((resolve, reject) => {
-			const parsedUrl = new URL(url);
-			const headers = {
-				'Content-Type': 'application/json',
-			};
-	
-			if (token) {
-				headers['Authorization'] = `Bearer ${token}`;
-			}
-	
-			const options = {
-				hostname: parsedUrl.hostname,
-				path: parsedUrl.pathname + parsedUrl.search,
-				method,
-				headers,
-				port: parsedUrl.port || 80
-			};
-	
-			const req = http.request(options, (res) => {
-				let responseData = '';
-	
-				this.log(`HTTP Status: ${res.statusCode}`);
-				this.log(`HTTP Headers: ${JSON.stringify(res.headers)}`);
-	
-				res.on('data', (chunk) => {
-					responseData += chunk;
-				});
-	
-				res.on('end', () => {
-					try {
-						const parsedData = JSON.parse(responseData);
-						resolve(parsedData);
-					} catch (error) {
-						this.log(`Non-JSON response received: ${responseData}`);
-						reject(new Error(`Invalid JSON: ${responseData}`));
-					}
-				});
-			});
-	
-			req.on('error', (error) => reject(error));
-			req.end();
-		});
-	}
+
+    // Function to make HTTP requests
+    async makeHttpRequest({ url, method = 'GET', token = null }) {
+        return new Promise((resolve, reject) => {
+            const parsedUrl = new URL(url);
+
+            const options = {
+                hostname: parsedUrl.hostname,
+                path: parsedUrl.pathname + parsedUrl.search,
+                method: method,
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+                port: parsedUrl.port || 80
+            };
+
+            this.log(`Making HTTP request to ${options.hostname}${options.path} with method ${method}`);
+
+            const req = http.request(options, (res) => {
+                let data = '';
+
+                res.on('data', (chunk) => {
+                    data += chunk;
+                });
+
+                res.on('end', () => {
+                    try {
+                        const jsonResponse = JSON.parse(data);
+                        resolve(jsonResponse);
+                    } catch (error) {
+                        reject(new Error(`Failed to parse JSON response: ${error.message}`));
+                    }
+                });
+            });
+
+            req.on('error', (error) => {
+                reject(new Error(`HTTP Request failed: ${error.message}`));
+            });
+
+            req.end();
+        });
+    }
 
 	// Return the service
 	getServices() {
