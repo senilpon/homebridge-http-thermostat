@@ -132,30 +132,36 @@ class ThermostatAccessory {
 
 	// Set target temperature (GET request with query string)
 	async setTargetTemperature(value, callback) {
-		this.targetTemperature = value;
-		this.saveState();
+		if (!this.apiSetTemperature || !this.apiSetTemperature.url) {
+			this.log("Error: apiSetTemperature URL is not set!");
+			return callback(new Error("apiSetTemperature is not defined"));
+		}
 	
-		const url = new URL(this.apiSetTemperature);
-		url.searchParams.set('temp', value);
+		const url = this.apiSetTemperature.url;
+		const token = this.apiSetTemperature.token;
+		const bodyKey = this.apiSetTemperature.bodyKey || "temp"; // Default to "temp" if not set
+	
+		// Construct the body dynamically from config
+		const postData = JSON.stringify({ [bodyKey]: value });
+	
+		this.log(`Setting temperature to ${value}°C using key '${bodyKey}' at ${url}`);
 	
 		try {
 			const response = await this.makeHttpRequest({
-				url: url.toString(),
-				method: this.apiSetTemperatureMethod, // Uses method from config.json
-				token: this.apiSetTemperatureToken  // Uses token from config.json
+				url: url,
+				method: 'POST',
+				token: token,
+				body: postData
 			});
 	
-			if (response.error) {
-				this.log(`API Error: ${response.error}`);
-				throw new Error(response.error);
-			}
-	
-			this.log(`Set target temperature to: ${this.targetTemperature}`);
+			this.log(`Temperature set response: ${JSON.stringify(response, null, 2)}`);
 			callback(null);
 		} catch (error) {
-			this.log(`Error setting target temperature: ${error.message}`);
+			this.log(`Error setting temperature: ${error.message}`);
 			callback(error);
 		}
+		await this.saveState();
+		callback(null);
 	}
 
 	getTargetHeatingCoolingState(callback) {
@@ -193,40 +199,6 @@ class ThermostatAccessory {
 			}
 		}
 
-		await this.saveState();
-		callback(null);
-	}
-
-
-	async setTemperature(value, callback) {
-		if (!this.apiSetTemperature || !this.apiSetTemperature.url) {
-			this.log("Error: apiSetTemperature URL is not set!");
-			return callback(new Error("apiSetTemperature is not defined"));
-		}
-	
-		const url = this.apiSetTemperature.url;
-		const token = this.apiSetTemperature.token;
-		const bodyKey = this.apiSetTemperature.bodyKey || "temp"; // Default to "temp" if not set
-	
-		// Construct the body dynamically from config
-		const postData = JSON.stringify({ [bodyKey]: value });
-	
-		this.log(`Setting temperature to ${value}°C using key '${bodyKey}' at ${url}`);
-	
-		try {
-			const response = await this.makeHttpRequest({
-				url: url,
-				method: 'POST',
-				token: token,
-				body: postData
-			});
-	
-			this.log(`Temperature set response: ${JSON.stringify(response, null, 2)}`);
-			callback(null);
-		} catch (error) {
-			this.log(`Error setting temperature: ${error.message}`);
-			callback(error);
-		}
 		await this.saveState();
 		callback(null);
 	}
