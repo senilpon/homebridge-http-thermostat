@@ -6,14 +6,25 @@ class ThermostatAccessory {
 		if ( !api || !api.hap) {
 			throw new Error('Homebridge API is not initialized. Check your setup.');
 		}
+
 		const Service = api.hap.Service;
 		const Characteristic = api.hap.Characteristic;
 		this.log = log;
-		this.name = config.name || 'Thermostat';
+		this.name = config.name;
+		
 		this.apiGetTemperature = config.apiGetTemperature;
-		this.apiSetTemperature = config.apiSetTemperature;
-		this.bearerTokenGet = config.apiGetToken;
-		this.apiSetOFF = config.apiSetOFF;
+		this.apiSetTemperature = config.apiSetTemperature.url;
+		this.apiSetTemperatureMethod = config.apiSetTemperature.method || 'POST';
+		this.apiSetTemperatureToken = config.apiSetTemperature.token || null;
+		
+		this.apiSetOFF = config.apiSetOFF.url;
+		this.apiSetOFFMethod = config.apiSetOFF.method || 'DELETE';
+		this.apiSetOFFToken = config.apiSetOFF.token || null;
+	
+		this.apiGetToken = config.apiGetToken;
+	
+		this.targetTemperature = 20;
+		this.targetHeatingCoolingState = 1;
 
 		//OFF, HEAT, COOL, AUTO
 		this.heatingOptions = {
@@ -126,29 +137,22 @@ class ThermostatAccessory {
 	async setTargetTemperature(value, callback) {
 		this.targetTemperature = value;
 		this.saveState();
-
+	
 		const url = new URL(this.apiSetTemperature);
 		url.searchParams.set('temp', value);
-
-		const options = {
-			hostname: url.hostname,
-			path: url.pathname + url.search,
-			method: 'GET',
-			port: url.port || 80,
-			headers: {
-				'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', // Mimic browser
-			},
-		};
-		this.log(`Requesting URL: ${url.href}`);
-		this.log(`Request options: ${JSON.stringify(options)}`);
+	
 		try {
-			const response = await this.makeHttpRequest(options); // No body is needed for GET
-
+			const response = await this.makeHttpRequest({
+				url: url.toString(),
+				method: this.apiSetTemperatureMethod, // Uses method from config.json
+				token: this.apiSetTemperatureToken  // Uses token from config.json
+			});
+	
 			if (response.error) {
 				this.log(`API Error: ${response.error}`);
 				throw new Error(response.error);
 			}
-
+	
 			this.log(`Set target temperature to: ${this.targetTemperature}`);
 			callback(null);
 		} catch (error) {
@@ -165,40 +169,33 @@ class ThermostatAccessory {
 	async setTargetHeatingCoolingState(value, callback) {
 		this.targetHeatingCoolingState = value;
 		this.log(`The new heating/cooling state is ${value}`);
-
+	
 		if (value === 0) {
-			this.log('Setting target heating/cooling state to: OFF');
-
+			this.log('Turning off heating/cooling system');
+	
 			const url = new URL(this.apiSetOFF);
 			url.searchParams.set('delay', 5);
-
-			const options = {
-				hostname: url.hostname,
-				path: url.pathname + url.search,
-				method: 'GET',
-				port: url.port || 80,
-				headers: {
-					'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', // Mimic browser
-					"Accept": "application/json" // Indicate the expected response format
-				},
-			};
-			this.log(`Requesting URL: ${url.href}`);
-			this.log(`Request options: ${JSON.stringify(options)}`);
+	
 			try {
-				const response = await this.makeHttpRequest(options); // No body is needed for GET
-
+				const response = await this.makeHttpRequest({
+					url: url.toString(),
+					method: this.apiSetOFFMethod, // Uses method from config.json
+					token: this.apiSetOFFToken // Uses token from config.json
+				});
+	
 				if (response.error) {
 					this.log(`API Error: ${response.error}`);
 					throw new Error(response.error);
 				}
-
+	
 				this.log(`Set heating/cooling to: ${this.targetHeatingCoolingState}`);
 				callback(null);
 			} catch (error) {
-				this.log(`Error setting heating/cooling temperature: ${error.message}`);
+				this.log(`Error setting heating/cooling state: ${error.message}`);
 				callback(error);
 			}
 		}
+	
 		await this.saveState();
 		callback(null);
 	}
@@ -214,32 +211,48 @@ class ThermostatAccessory {
 		this.log('State saved');
 	}
 
-	// Simplified version for GET requests only
-	makeHttpRequest(options) {
+	makeHttpRequest({ url, method = 'GET', token = null }) {
 		return new Promise((resolve, reject) => {
+			const parsedUrl = new URL(url);
+			const headers = {
+				'Content-Type': 'application/json',
+			};
+	
+			if (token) {
+				headers['Authorization'] = `Bearer ${token}`;
+			}
+	
+			const options = {
+				hostname: parsedUrl.hostname,
+				path: parsedUrl.pathname + parsedUrl.search,
+				method,
+				headers,
+				port: parsedUrl.port || 80
+			};
+	
 			const req = http.request(options, (res) => {
 				let responseData = '';
-				// Log status and headers for debugging
+	
 				this.log(`HTTP Status: ${res.statusCode}`);
 				this.log(`HTTP Headers: ${JSON.stringify(res.headers)}`);
+	
 				res.on('data', (chunk) => {
 					responseData += chunk;
 				});
+	
 				res.on('end', () => {
 					try {
-						// Attempt to parse the response as JSON
 						const parsedData = JSON.parse(responseData);
 						resolve(parsedData);
 					} catch (error) {
-						// If parsing fails, resolve with raw response instead
 						this.log(`Non-JSON response received: ${responseData}`);
 						reject(new Error(`Invalid JSON: ${responseData}`));
 					}
 				});
 			});
-
-			req.on('error', (error) => reject(error)); // Reject the promise on any request error
-			req.end(); // End the request (GET requests don't need to send data)
+	
+			req.on('error', (error) => reject(error));
+			req.end();
 		});
 	}
 
