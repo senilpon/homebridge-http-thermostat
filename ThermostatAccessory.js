@@ -3,20 +3,20 @@ const storage = require('node-persist'); // Use 'node-persist' for local storage
 
 class ThermostatAccessory {
 	constructor(log, config, api) {
-		if ( !api || !api.hap) {
+		if (!api || !api.hap) {
 			throw new Error('Homebridge API is not initialized. Check your setup.');
 		}
-
+	
 		const Service = api.hap.Service;
 		const Characteristic = api.hap.Characteristic;
 		this.log = log;
 		this.name = config.name;
-		
+	
 		this.apiGetTemperature = config.apiGetTemperature;
 		this.apiSetTemperature = config.apiSetTemperature.url;
 		this.apiSetTemperatureMethod = config.apiSetTemperature.method || 'POST';
 		this.apiSetTemperatureToken = config.apiSetTemperature.token || null;
-		
+	
 		this.apiSetOFF = config.apiSetOFF.url;
 		this.apiSetOFFMethod = config.apiSetOFF.method || 'DELETE';
 		this.apiSetOFFToken = config.apiSetOFF.token || null;
@@ -25,32 +25,31 @@ class ThermostatAccessory {
 	
 		this.targetTemperature = 20;
 		this.targetHeatingCoolingState = 1;
-
-		//OFF, HEAT, COOL, AUTO
+	
 		this.heatingOptions = {
 			0: 'OFF',
 			1: 'HEAT'
-		}
+		};
 		this.log('Characteristic.TargetHeatingCoolingState:', Characteristic.TargetHeatingCoolingState);
-		this.currentTemperature = 20; // Default value
-        this.targetTemperature = 19; // Default value
-		this.targetHeatingCoolingState = 0; // Default to 'Off'
-        this.temperatureDisplayUnits = 0;
-
+		this.currentTemperature = 20; 
+		this.targetTemperature = 19;
+		this.targetHeatingCoolingState = 0;
+		this.temperatureDisplayUnits = 0;
+	
 		this.storageInitialized = false;
 		this.initStorage();
-
+	
 		this.service = new Service.Thermostat(this.name);
-
+	
 		this.service
 			.getCharacteristic(Characteristic.CurrentTemperature)
-			.on('get', this.getCurrentTemperature ? this.getCurrentTemperature.bind(this) : (cb) => cb(null, 0)); // Fallback function
-
+			.on('get', this.getCurrentTemperature.bind(this));
+	
 		this.service
 			.getCharacteristic(Characteristic.TargetTemperature)
 			.on('get', this.getTargetTemperature.bind(this))
 			.on('set', this.setTargetTemperature.bind(this));
-
+	
 		this.service
 			.getCharacteristic(Characteristic.TargetHeatingCoolingState)
 			.setProps({
@@ -61,6 +60,9 @@ class ThermostatAccessory {
 			})
 			.on('get', this.getTargetHeatingCoolingState.bind(this))
 			.on('set', this.setTargetHeatingCoolingState.bind(this));
+	
+		// **Bind `makeHttpRequest` to `this` to avoid 'bind' error**
+		this.makeHttpRequest = this.makeHttpRequest.bind(this);
 	}
 
 	async initStorage() {
