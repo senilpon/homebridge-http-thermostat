@@ -211,15 +211,14 @@ class ThermostatAccessory {
 	makeHttpRequest({ url, method = 'GET', token = null, body = null, plain = false }) {
 		return new Promise((resolve, reject) => {
 			const parsedUrl = new URL(url);
-
 			const headers = {
 				'Content-Type': 'application/json',
 			};
-
+	
 			if (token) {
 				headers['Authorization'] = `Bearer ${token}`;
 			}
-
+	
 			const options = {
 				hostname: parsedUrl.hostname,
 				path: parsedUrl.pathname + parsedUrl.search,
@@ -227,36 +226,37 @@ class ThermostatAccessory {
 				headers,
 				port: parsedUrl.port || 80,
 			};
-
-			// Print headers more clearly
-			this.log(`Request Headers:`);
-			for (const [key, value] of Object.entries(headers)) {
-				this.log(`  ${key}: ${value}`);
-			}
-
+	
 			const req = http.request(options, (res) => {
 				let responseData = '';
-
+	
 				res.on('data', (chunk) => {
 					responseData += chunk;
 				});
-
+	
 				res.on('end', () => {
+					this.log("Raw response:", responseData);  // Log raw response data
+	
 					try {
-						const json = JSON.parse(responseData);
-						resolve(json);
+						const parsedResponse = JSON.parse(responseData);
+						this.log("Parsed response:", JSON.stringify(parsedResponse, null, 2));
+						resolve(parsedResponse);
 					} catch (error) {
+						this.log(`Error parsing response: ${error.message}`);
 						reject(new Error(`Invalid JSON response: ${responseData}`));
 					}
 				});
 			});
-
-			req.on('error', (error) => reject(error));
-
+	
+			req.on('error', (error) => {
+				this.log(`Request error: ${error.message}`);
+				reject(error);
+			});
+	
 			if (method === 'POST' && body) {
 				req.write(body);
 			}
-
+	
 			req.end();
 		});
 	}
