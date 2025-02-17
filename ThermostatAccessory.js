@@ -210,13 +210,14 @@ class ThermostatAccessory {
 		this.log('State saved');
 	}
 
-	makeHttpRequest({ url, method = 'GET', token = null, body = null }) {
+	makeHttpRequest({ url, method = 'GET', token = null, body = null, plain = false }) {
 		return new Promise((resolve, reject) => {
 			const parsedUrl = new URL(url);
 	
-			const headers = {
-				'Content-Type': 'application/json',
-			};
+			const headers = {};
+			if (!plain) {
+				headers['Content-Type'] = 'application/json';
+			}
 	
 			if (token) {
 				headers['Authorization'] = `Bearer ${token}`;
@@ -244,8 +245,9 @@ class ThermostatAccessory {
 	
 			req.on('error', (error) => reject(error));
 	
+			// Send the body as raw text if `plain` is true
 			if (method === 'POST' && body) {
-				req.write(body);
+				req.write(plain ? String(body) : JSON.stringify(body));
 			}
 	
 			req.end();
