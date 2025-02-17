@@ -144,7 +144,7 @@ class ThermostatAccessory {
 	
 			this.log(`Temperature set response: ${JSON.stringify(response, null, 2)}`);
 	
-			if (response && response.status === "OK") {
+			if (response && response.status === "success") {
 				this.log("Temperature successfully updated!");
 			} else {
 				this.log("Warning: API did not confirm temperature change.");
@@ -170,24 +170,38 @@ class ThermostatAccessory {
 
 		if (value === 0) {
 			this.log('Turning off heating/cooling system');
-
+		
 			const url = new URL(this.apiSetOFF);
-			url.searchParams.set('delay', 5);
-
+			
+			// Create the request body with the delay
+			const postData = JSON.stringify({ delay: 5 });
+		
 			try {
+				// Make the HTTP request with the delay as the body
 				const response = await this.makeHttpRequest({
 					url: url.toString(),
 					method: this.apiSetOFFMethod,
-					token: this.apiSetOFFToken
+					token: this.apiSetOFFToken,
+					body: postData
 				});
-
-				if (response.error) {
-					this.log(`API Error: ${response.error}`);
-					throw new Error(response.error);
+		
+				// Check if the response is valid JSON and contains an error
+				try {
+					const parsedResponse = JSON.parse(response); // Try to parse it as JSON
+					if (parsedResponse.error) {
+						this.log(`API Error: ${parsedResponse.error}`);
+						throw new Error(parsedResponse.error);
+					}
+		
+					this.log(`Set heating/cooling to: ${this.targetHeatingCoolingState}`);
+					callback(null);
+		
+				} catch (parseError) {
+					// If parsing fails, log raw response data
+					this.log(`Received raw response: ${response}`);
+					throw new Error('Invalid JSON response from API');
 				}
-
-				this.log(`Set heating/cooling to: ${this.targetHeatingCoolingState}`);
-				callback(null);
+		
 			} catch (error) {
 				this.log(`Error setting heating/cooling state: ${error.message}`);
 				callback(error);
