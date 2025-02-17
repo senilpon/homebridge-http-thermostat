@@ -128,7 +128,7 @@ class ThermostatAccessory {
 	
 		const url = this.apiSetTemperature.url;
 		const token = this.apiSetTemperature.token;
-		const postData = JSON.stringify({ temp: value });
+		const postData = JSON.stringify({ temp: value }); // Ensure the body is in correct format
 	
 		this.log(`Setting temperature to ${value}°C at ${url}`);
 	
@@ -137,12 +137,13 @@ class ThermostatAccessory {
 				url: url,
 				method: 'POST',
 				token: token,
-				body: postData,
+				body: postData, // Send the body
 				plain: false
 			});
 	
 			this.log(`Temperature set response: ${JSON.stringify(response, null, 2)}`);
 	
+			// Check for success confirmation in the response
 			if (response && response.status === "OK") {
 				this.log("Temperature successfully updated!");
 			} else {
