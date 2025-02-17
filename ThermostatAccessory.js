@@ -1,5 +1,5 @@
-const http = require('http'); // Use the 'http' module for GET requests
-const storage = require('node-persist'); // Use 'node-persist' for local storage
+const http = require('http'); 
+const storage = require('node-persist'); 
 
 class ThermostatAccessory {
 	constructor(log, config, api) {
@@ -56,8 +56,7 @@ class ThermostatAccessory {
 			})
 			.on('get', this.getTargetHeatingCoolingState.bind(this))
 			.on('set', this.setTargetHeatingCoolingState.bind(this));
-	
-		// **Bind `makeHttpRequest` to `this` to avoid 'bind' error**
+
 		this.makeHttpRequest = this.makeHttpRequest.bind(this);
 	}
 
@@ -66,12 +65,10 @@ class ThermostatAccessory {
 			await storage.init();
 			this.currentTemperature = (await storage.getItem('currentTemperature')) || 20;
 			this.targetTemperature = (await storage.getItem('targetTemperature')) || 19;
-			this.targetHeatingCoolingState = (await storage.getItem('targetHeatingCoolingState')) || 0; // Default to 'Off'
+			this.targetHeatingCoolingState = (await storage.getItem('targetHeatingCoolingState')) || 0; 
 
-			this.storageInitialized = true; // Mark storage as initialized
-			this.log(
-				`Initialized storage: Current Temp: ${this.currentTemperature}, Target Temp: ${this.targetTemperature}, State: ${this.targetHeatingCoolingState}`
-			);
+			this.storageInitialized = true;
+			this.log(`Initialized storage: Current Temp: ${this.currentTemperature}, Target Temp: ${this.targetTemperature}, State: ${this.targetHeatingCoolingState}`);
 		} catch (error) {
 			this.log(`Error initializing storage: ${error.message}`);
 		}
@@ -95,13 +92,10 @@ class ThermostatAccessory {
 
             this.log("API Response:", JSON.stringify(response, null, 2));
 
-            // Ensure the response contains 'data' and it is an array
             if (response.data && Array.isArray(response.data)) {
-                // Find the temperature data where 'name' is 'temp'
                 const temperatureData = response.data.find(item => item.name === 'temp');
-
                 if (temperatureData) {
-                    this.currentTemperature = parseFloat(temperatureData.value) || 0; // Ensure it's a number
+                    this.currentTemperature = parseFloat(temperatureData.value) || 0;
                     this.log(`Fetched current temperature: ${this.currentTemperature}°C`);
                 } else {
                     this.currentTemperature = 0;
@@ -112,7 +106,6 @@ class ThermostatAccessory {
                 this.log("Invalid data format or missing data field in API response");
             }
 
-            // Return the fetched temperature
             callback(null, this.currentTemperature);
         } catch (error) {
             this.log(`Error fetching current temperature: ${error.message}`);
@@ -126,7 +119,7 @@ class ThermostatAccessory {
 		callback(null, this.targetTemperature);
 	}
 
-	// Set target temperature (GET request with query string) // Set target temperature (POST request with plain body)
+	// Set target temperature (POST request)
 	async setTargetTemperature(value, callback) {
 		if (!this.apiSetTemperature || !this.apiSetTemperature.url) {
 			this.log("Error: apiSetTemperature URL is not set!");
@@ -150,7 +143,6 @@ class ThermostatAccessory {
 	
 			this.log(`Temperature set response: ${JSON.stringify(response, null, 2)}`);
 	
-			// ✅ Ensure response contains expected success confirmation
 			if (response && response.status === "OK") {
 				this.log("Temperature successfully updated!");
 			} else {
@@ -184,8 +176,8 @@ class ThermostatAccessory {
 			try {
 				const response = await this.makeHttpRequest({
 					url: url.toString(),
-					method: this.apiSetOFFMethod, // Uses method from config.json
-					token: this.apiSetOFFToken // Uses token from config.json
+					method: this.apiSetOFFMethod,
+					token: this.apiSetOFFToken
 				});
 
 				if (response.error) {
@@ -221,7 +213,7 @@ class ThermostatAccessory {
 			const parsedUrl = new URL(url);
 	
 			const headers = {
-				'Content-Type': 'application/json', // ✅ Always set JSON Content-Type
+				'Content-Type': 'application/json',
 			};
 	
 			if (token) {
@@ -255,7 +247,6 @@ class ThermostatAccessory {
 	
 			req.on('error', (error) => reject(error));
 	
-			// ✅ Ensure body is sent for POST requests
 			if (method === 'POST' && body) {
 				req.write(body);
 			}
