@@ -146,8 +146,8 @@ class ThermostatAccessory {
 				url: url,
 				method: 'POST',
 				token: token,
-				body: postData, // Send JSON body
-				plain: false // Ensures Content-Type is application/json
+				body: postData, // ✅ Send JSON body
+				plain: false // ✅ Ensures Content-Type is application/json
 			});
 	
 			this.log(`Temperature set response: ${JSON.stringify(response, null, 2)}`);
@@ -156,6 +156,7 @@ class ThermostatAccessory {
 			this.log(`Error setting temperature: ${error.message}`);
 			callback(error);
 		}
+	
 		await this.saveState();
 	}
 
@@ -212,16 +213,15 @@ class ThermostatAccessory {
 	makeHttpRequest({ url, method = 'GET', token = null, body = null, plain = false }) {
 		return new Promise((resolve, reject) => {
 			const parsedUrl = new URL(url);
-
-			const headers = {};
-			if (!plain) {
-				headers['Content-Type'] = 'application/json';
-			}
-
+	
+			const headers = {
+				'Content-Type': 'application/json', // ✅ Always set JSON Content-Type
+			};
+	
 			if (token) {
 				headers['Authorization'] = `Bearer ${token}`;
 			}
-
+	
 			const options = {
 				hostname: parsedUrl.hostname,
 				path: parsedUrl.pathname + parsedUrl.search,
@@ -229,30 +229,31 @@ class ThermostatAccessory {
 				headers,
 				port: parsedUrl.port || 80,
 			};
-
+	
 			const req = http.request(options, (res) => {
 				let responseData = '';
-
+	
 				res.on('data', (chunk) => {
 					responseData += chunk;
 				});
-
+	
 				res.on('end', () => {
 					try {
-						const json = JSON.parse(responseData); // ✅ Parse JSON before returning
+						const json = JSON.parse(responseData);
 						resolve(json);
 					} catch (error) {
 						reject(new Error(`Invalid JSON response: ${responseData}`));
 					}
 				});
 			});
-
+	
 			req.on('error', (error) => reject(error));
-
+	
+			// ✅ Ensure body is sent for POST requests
 			if (method === 'POST' && body) {
-				req.write(plain ? String(body) : JSON.stringify(body));
+				req.write(body);
 			}
-
+	
 			req.end();
 		});
 	}
