@@ -214,11 +214,15 @@ class ThermostatAccessory {
 			const parsedUrl = new URL(url);
 			const headers = {
 				'Content-Type': 'application/json',
-				'Content-Length': Buffer.byteLength(body),  // Add Content-Length header
 			};
 	
 			if (token) {
 				headers['Authorization'] = `Bearer ${token}`;
+			}
+	
+			if (body) {
+				// Set the Content-Length based on the body
+				headers['Content-Length'] = Buffer.byteLength(body);
 			}
 	
 			const options = {
@@ -237,12 +241,15 @@ class ThermostatAccessory {
 				});
 	
 				res.on('end', () => {
-					this.log("Raw response:", responseData);  // Log raw response data
-	
+					this.log("Raw response data:", responseData);  // Log raw response data
 					try {
-						const parsedResponse = JSON.parse(responseData);
-						this.log("Parsed response:", JSON.stringify(parsedResponse, null, 2));
-						resolve(parsedResponse);
+						if (responseData) {
+							const parsedResponse = JSON.parse(responseData);
+							this.log("Parsed response:", JSON.stringify(parsedResponse, null, 2));
+							resolve(parsedResponse);
+						} else {
+							reject(new Error("No response data received"));
+						}
 					} catch (error) {
 						this.log(`Error parsing response: ${error.message}`);
 						reject(new Error(`Invalid JSON response: ${responseData}`));
