@@ -207,19 +207,19 @@ class ThermostatAccessory {
 
 		this.log('State saved');
 	}
-	
+
 	makeHttpRequest({ url, method = 'GET', token = null, body = null, plain = false }) {
 		return new Promise((resolve, reject) => {
 			const parsedUrl = new URL(url);
-	
+
 			const headers = {
 				'Content-Type': 'application/json',
 			};
-	
+
 			if (token) {
 				headers['Authorization'] = `Bearer ${token}`;
 			}
-	
+
 			const options = {
 				hostname: parsedUrl.hostname,
 				path: parsedUrl.pathname + parsedUrl.search,
@@ -227,22 +227,20 @@ class ThermostatAccessory {
 				headers,
 				port: parsedUrl.port || 80,
 			};
-	
-			// Log the details of the HTTP request
-			this.log(`Request URL: ${url}`);
-			this.log(`Request Method: ${method}`);
-			this.log(`Request Headers: ${JSON.stringify(headers, null, 2)}`);
-			if (body) {
-				this.log(`Request Body: ${body}`);
+
+			// Print headers more clearly
+			this.log(`Request Headers:`);
+			for (const [key, value] of Object.entries(headers)) {
+				this.log(`  ${key}: ${value}`);
 			}
-	
+
 			const req = http.request(options, (res) => {
 				let responseData = '';
-	
+
 				res.on('data', (chunk) => {
 					responseData += chunk;
 				});
-	
+
 				res.on('end', () => {
 					try {
 						const json = JSON.parse(responseData);
@@ -252,13 +250,13 @@ class ThermostatAccessory {
 					}
 				});
 			});
-	
+
 			req.on('error', (error) => reject(error));
-	
+
 			if (method === 'POST' && body) {
 				req.write(body);
 			}
-	
+
 			req.end();
 		});
 	}
