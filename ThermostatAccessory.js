@@ -128,22 +128,21 @@ class ThermostatAccessory {
 	
 		const url = this.apiSetTemperature.url;
 		const token = this.apiSetTemperature.token;
-		const postData = JSON.stringify({ temp: value }); // Ensure the body is in correct format
+		const postData = JSON.stringify({ temp: value });
 	
-		this.log(`Setting temperature to ${value}°C at ${url}`);
+		this.log(`Setting temperature to ${value}°C at ${url} with token: ${token}`);
 	
 		try {
 			const response = await this.makeHttpRequest({
 				url: url,
 				method: 'POST',
 				token: token,
-				body: postData, // Send the body
+				body: postData,
 				plain: false
 			});
 	
 			this.log(`Temperature set response: ${JSON.stringify(response, null, 2)}`);
 	
-			// Check for success confirmation in the response
 			if (response && response.status === "OK") {
 				this.log("Temperature successfully updated!");
 			} else {
@@ -208,7 +207,7 @@ class ThermostatAccessory {
 
 		this.log('State saved');
 	}
-
+	
 	makeHttpRequest({ url, method = 'GET', token = null, body = null, plain = false }) {
 		return new Promise((resolve, reject) => {
 			const parsedUrl = new URL(url);
@@ -228,6 +227,14 @@ class ThermostatAccessory {
 				headers,
 				port: parsedUrl.port || 80,
 			};
+	
+			// Log the details of the HTTP request
+			this.log(`Request URL: ${url}`);
+			this.log(`Request Method: ${method}`);
+			this.log(`Request Headers: ${JSON.stringify(headers, null, 2)}`);
+			if (body) {
+				this.log(`Request Body: ${body}`);
+			}
 	
 			const req = http.request(options, (res) => {
 				let responseData = '';
