@@ -75,43 +75,45 @@ class ThermostatAccessory {
 	}
 
     // Fetch current temperature using GET request
-    async getCurrentTemperature(callback) {
-        if (!this.apiGetTemperature) {
-            this.log("Error: apiGetTemperature is not set!");
-            return callback(new Error("apiGetTemperature is not defined"));
-        }
-
-        this.log(`Fetching temperature from: ${this.apiGetTemperature}`);
-
-        try {
-            const response = await this.makeHttpRequest({
-                url: this.apiGetTemperature,
-                method: 'GET',
-                token: this.apiGetToken
-            });
-
-            this.log("API Response:", JSON.stringify(response, null, 2));
-
-            if (response.data && Array.isArray(response.data)) {
-                const temperatureData = response.data.find(item => item.name === 'temp');
-                if (temperatureData) {
-                    this.currentTemperature = parseFloat(temperatureData.value) || 0;
-                    this.log(`Fetched current temperature: ${this.currentTemperature}°C`);
-                } else {
-                    this.currentTemperature = 0;
-                    this.log("Temperature data not found in response");
-                }
-            } else {
-                this.currentTemperature = 0;
-                this.log("Invalid data format or missing data field in API response");
-            }
-
-            callback(null, this.currentTemperature);
-        } catch (error) {
-            this.log(`Error fetching current temperature: ${error.message}`);
-            callback(error);
-        }
-    }
+	async getCurrentTemperature(callback) {
+		if (!this.apiGetTemperature) {
+			this.log("Error: apiGetTemperature is not set!");
+			return callback(new Error("apiGetTemperature is not defined"));
+		}
+	
+		this.log(`Fetching temperature from: ${this.apiGetTemperature}`);
+	
+		try {
+			const response = await this.makeHttpRequest({
+				url: this.apiGetTemperature,
+				method: 'GET',
+				token: this.apiGetToken
+			});
+	
+			// Log the entire response for debugging
+			this.log("API Response:", JSON.stringify(response, null, 2));
+	
+			// Check if response and response.data are valid
+			if (response && response.data && Array.isArray(response.data)) {
+				const temperatureData = response.data.find(item => item.name === 'temp');
+				if (temperatureData) {
+					this.currentTemperature = parseFloat(temperatureData.value) || 0;
+					this.log(`Fetched current temperature: ${this.currentTemperature}°C`);
+				} else {
+					this.currentTemperature = 0;
+					this.log("Temperature data not found in response");
+				}
+			} else {
+				this.currentTemperature = 0;
+				this.log("Invalid data format or missing data field in API response");
+			}
+	
+			callback(null, this.currentTemperature);
+		} catch (error) {
+			this.log(`Error fetching current temperature: ${error.message}`);
+			callback(error);
+		}
+	}
 
 	// Return target temperature
 	getTargetTemperature(callback) {
