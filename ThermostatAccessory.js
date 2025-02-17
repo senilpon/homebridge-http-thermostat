@@ -210,59 +210,45 @@ class ThermostatAccessory {
 		this.log('State saved');
 	}
 
-	function makeHttpRequest({ url, method = 'GET', token = null, body = null }) {
+	makeHttpRequest({ url, method = 'GET', token = null, body = null }) {
 		return new Promise((resolve, reject) => {
-		  const parsedUrl = new URL(url);
-	  
-		  let headers = {
-			'Content-Type': 'application/json', // Default to JSON if POST has body
-		  };
-	  
-		  // Add token for authorization if provided
-		  if (token) {
-			headers['Authorization'] = `Bearer ${token}`;
-		  }
-	  
-		  // Change Content-Type to 'text/plain' if body is plain text
-		  if (body && typeof body === 'string') {
-			headers['Content-Type'] = 'text/plain';
-		  }
-	  
-		  const options = {
-			hostname: parsedUrl.hostname,
-			path: parsedUrl.pathname + parsedUrl.search, // Path and query parameters
-			method,
-			headers,
-			port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80), // Default port handling
-		  };
-	  
-		  const req = (parsedUrl.protocol === 'https:' ? https : http).request(options, (res) => {
-			let responseData = '';
-	  
-			console.log(`HTTP Status: ${res.statusCode}`);
-			console.log(`HTTP Headers: ${JSON.stringify(res.headers)}`);
-	  
-			res.on('data', (chunk) => {
-			  responseData += chunk;
+			const parsedUrl = new URL(url);
+	
+			const headers = {
+				'Content-Type': 'application/json',
+			};
+	
+			if (token) {
+				headers['Authorization'] = `Bearer ${token}`;
+			}
+	
+			const options = {
+				hostname: parsedUrl.hostname,
+				path: parsedUrl.pathname + parsedUrl.search,
+				method,
+				headers,
+				port: parsedUrl.port || 80,
+			};
+	
+			const req = http.request(options, (res) => {
+				let responseData = '';
+	
+				res.on('data', (chunk) => {
+					responseData += chunk;
+				});
+	
+				res.on('end', () => {
+					resolve(responseData);
+				});
 			});
-	  
-			res.on('end', () => {
-			  if (res.statusCode === 200) {
-				resolve(responseData); // Return plain response data if status code is 200
-			  } else {
-				reject(new Error(`Request failed. Status: ${res.statusCode}. Response: ${responseData}`));
-			  }
-			});
-		  });
-	  
-		  req.on('error', (error) => reject(error));
-	  
-		  // Write the request body if it's a POST request and body is provided
-		  if (method === 'POST' && body) {
-			req.write(body); // If it's plain text, send it directly
-		  }
-	  
-		  req.end(); // End the request
+	
+			req.on('error', (error) => reject(error));
+	
+			if (method === 'POST' && body) {
+				req.write(body);
+			}
+	
+			req.end();
 		});
 	}
 
