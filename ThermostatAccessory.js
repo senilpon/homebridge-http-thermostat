@@ -135,19 +135,19 @@ class ThermostatAccessory {
 	
 		const url = this.apiSetTemperature.url;
 		const token = this.apiSetTemperature.token;
-		const bodyKey = this.apiSetTemperature.bodyKey || "temp"; // Default to "temp" if not set
 	
-		// Wrap the body inside the 'plain' key
-		const postData = value.toString();  
+		// Ensure request body matches expected JSON format
+		const postData = JSON.stringify({ temp: value });
 	
-		this.log(`Setting temperature to ${value}°C using key '${bodyKey}' at ${url}`);
+		this.log(`Setting temperature to ${value}°C at ${url}`);
 	
 		try {
 			const response = await this.makeHttpRequest({
 				url: url,
 				method: 'POST',
 				token: token,
-				body: postData // Send the body with 'plain' key
+				body: postData, // Send JSON body
+				plain: false // Ensures Content-Type is application/json
 			});
 	
 			this.log(`Temperature set response: ${JSON.stringify(response, null, 2)}`);
@@ -157,7 +157,6 @@ class ThermostatAccessory {
 			callback(error);
 		}
 		await this.saveState();
-		callback(null);
 	}
 
 	getTargetHeatingCoolingState(callback) {
@@ -209,14 +208,14 @@ class ThermostatAccessory {
 
 		this.log('State saved');
 	}
-
+	
 	makeHttpRequest({ url, method = 'GET', token = null, body = null, plain = false }) {
 		return new Promise((resolve, reject) => {
 			const parsedUrl = new URL(url);
 	
-			const headers = {};
+			const headers = { };
 			if (!plain) {
-				headers['Content-Type'] = 'application/json';
+				headers['Content-Type'] = 'application/json'; // ✅ Ensures JSON request
 			}
 	
 			if (token) {
@@ -245,7 +244,7 @@ class ThermostatAccessory {
 	
 			req.on('error', (error) => reject(error));
 	
-			// Send the body as raw text if `plain` is true
+			// Send JSON body
 			if (method === 'POST' && body) {
 				req.write(plain ? String(body) : JSON.stringify(body));
 			}
