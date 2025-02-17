@@ -146,6 +146,7 @@ class ThermostatAccessory {
 	
 			if (response && response.status === "success") {
 				this.log("Temperature successfully updated!");
+				this.targetTemperature = value;
 			} else {
 				this.log("Warning: API did not confirm temperature change.");
 			}
