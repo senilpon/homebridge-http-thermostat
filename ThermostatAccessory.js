@@ -13,10 +13,7 @@ class ThermostatAccessory {
 		this.name = config.name;
 	
 		this.apiGetTemperature = config.apiGetTemperature;
-		this.apiSetTemperature = config.apiSetTemperature
-		this.apiSetTemperatureUrl = config.apiSetTemperature.url;
-		this.apiSetTemperatureMethod = config.apiSetTemperature.method || 'POST';
-		this.apiSetTemperatureToken = config.apiSetTemperature.token || null;
+		this.apiSetTemperature = config.apiSetTemperature;
 	
 		this.apiSetOFF = config.apiSetOFF.url;
 		this.apiSetOFFMethod = config.apiSetOFF.method || 'POST';
@@ -24,7 +21,6 @@ class ThermostatAccessory {
 	
 		this.apiGetToken = config.apiGetToken;
 	
-		this.targetTemperature = 20;
 		this.targetHeatingCoolingState = 1;
 	
 		this.heatingOptions = {
@@ -34,7 +30,6 @@ class ThermostatAccessory {
 		this.log('Characteristic.TargetHeatingCoolingState:', Characteristic.TargetHeatingCoolingState);
 		this.currentTemperature = 20; 
 		this.targetTemperature = 19;
-		this.targetHeatingCoolingState = 0;
 		this.temperatureDisplayUnits = 0;
 	
 		this.storageInitialized = false;
@@ -215,54 +210,59 @@ class ThermostatAccessory {
 		this.log('State saved');
 	}
 
-	makeHttpRequest({ url, method = 'GET', token = null, body = null }) {
+	function makeHttpRequest({ url, method = 'GET', token = null, body = null }) {
 		return new Promise((resolve, reject) => {
-			const parsedUrl = new URL(url);
-			const headers = {
-				'Content-Type': 'application/json',
-			};
-	
-			if (token) {
-				headers['Authorization'] = `Bearer ${token}`;
-			}
-	
-			const options = {
-				hostname: parsedUrl.hostname,
-				path: parsedUrl.pathname + parsedUrl.search,
-				method,
-				headers,
-				port: parsedUrl.port || 80,
-			};
-	
-			const req = http.request(options, (res) => {
-				let responseData = '';
-	
-				this.log(`HTTP Status: ${res.statusCode}`);
-				this.log(`HTTP Headers: ${JSON.stringify(res.headers)}`);
-	
-				res.on('data', (chunk) => {
-					responseData += chunk;
-				});
-	
-				res.on('end', () => {
-					try {
-						const parsedData = JSON.parse(responseData);
-						resolve(parsedData);
-					} catch (error) {
-						this.log(`Non-JSON response received: ${responseData}`);
-						reject(new Error(`Invalid JSON: ${responseData}`));
-					}
-				});
+		  const parsedUrl = new URL(url);
+	  
+		  let headers = {
+			'Content-Type': 'application/json', // Default to JSON if POST has body
+		  };
+	  
+		  // Add token for authorization if provided
+		  if (token) {
+			headers['Authorization'] = `Bearer ${token}`;
+		  }
+	  
+		  // Change Content-Type to 'text/plain' if body is plain text
+		  if (body && typeof body === 'string') {
+			headers['Content-Type'] = 'text/plain';
+		  }
+	  
+		  const options = {
+			hostname: parsedUrl.hostname,
+			path: parsedUrl.pathname + parsedUrl.search, // Path and query parameters
+			method,
+			headers,
+			port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80), // Default port handling
+		  };
+	  
+		  const req = (parsedUrl.protocol === 'https:' ? https : http).request(options, (res) => {
+			let responseData = '';
+	  
+			console.log(`HTTP Status: ${res.statusCode}`);
+			console.log(`HTTP Headers: ${JSON.stringify(res.headers)}`);
+	  
+			res.on('data', (chunk) => {
+			  responseData += chunk;
 			});
-	
-			req.on('error', (error) => reject(error));
-	
-			// Send the body only if it's a POST request
-			if (method === 'POST' && body) {
-				req.write(body); // Send the body as stringified JSON
-			}
-	
-			req.end(); // End the request
+	  
+			res.on('end', () => {
+			  if (res.statusCode === 200) {
+				resolve(responseData); // Return plain response data if status code is 200
+			  } else {
+				reject(new Error(`Request failed. Status: ${res.statusCode}. Response: ${responseData}`));
+			  }
+			});
+		  });
+	  
+		  req.on('error', (error) => reject(error));
+	  
+		  // Write the request body if it's a POST request and body is provided
+		  if (method === 'POST' && body) {
+			req.write(body); // If it's plain text, send it directly
+		  }
+	  
+		  req.end(); // End the request
 		});
 	}
 
