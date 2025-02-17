@@ -254,6 +254,7 @@ class ThermostatAccessory {
 			});
 	
 			if (method === 'POST' && body) {
+				this.log("Request Body: ", body);  // Log body before sending
 				req.write(body);
 			}
 	
