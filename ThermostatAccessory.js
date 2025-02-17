@@ -137,8 +137,7 @@ class ThermostatAccessory {
 				url: url,
 				method: 'POST',
 				token: token,
-				body: postData,
-				plain: false
+				body: postData
 			});
 	
 			this.log(`Temperature set response: ${JSON.stringify(response, null, 2)}`);
@@ -213,6 +212,7 @@ class ThermostatAccessory {
 			const parsedUrl = new URL(url);
 			const headers = {
 				'Content-Type': 'application/json',
+				'Content-Length': Buffer.byteLength(body),  // Add Content-Length header
 			};
 	
 			if (token) {
