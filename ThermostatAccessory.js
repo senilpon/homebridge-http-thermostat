@@ -1,5 +1,6 @@
 const http = require('http'); 
 const storage = require('node-persist'); 
+const querystring = require('querystring'); 
 
 class ThermostatAccessory {
 	constructor(log, config, api) {
@@ -18,7 +19,7 @@ class ThermostatAccessory {
 		this.apiSetOFF = config.apiSetOFF.url;
 		this.apiSetOFFMethod = config.apiSetOFF.method || 'POST';
 		this.apiSetOFFToken = config.apiSetOFF.token || null;
-	
+		this.apiContentType = config.apiContentType || 'application/json';
 		this.apiGetToken = config.apiGetToken;
 	
 		this.targetHeatingCoolingState = 1;
@@ -34,7 +35,6 @@ class ThermostatAccessory {
 	
 		this.storageInitialized = false;
 		this.initStorage();
-	
 		this.service = new Service.Thermostat(this.name);
 	
 		this.service
@@ -224,11 +224,20 @@ class ThermostatAccessory {
 		this.log('State saved');
 	}
 
-	makeHttpRequest({ url, method = 'GET', token = null, body = null, plain = false }) {
+	makeHttpRequest({ url, method = 'GET', token = null, body = null, contentType = 'application/json' }) {
 		return new Promise((resolve, reject) => {
 			const parsedUrl = new URL(url);
+	
+			// Handle body encoding based on content type
+			if (contentType === 'application/x-www-form-urlencoded' && typeof body === 'object') {
+				body = querystring.stringify(body);  // URL-encode the body
+			} else if (contentType === 'application/json' && typeof body === 'object') {
+				body = JSON.stringify(body);  // JSON encode the body
+			}
+	
+			// Set headers dynamically
 			const headers = {
-				'Content-Type': 'application/json',
+				'Content-Type': contentType,
 			};
 	
 			if (token) {
@@ -236,7 +245,6 @@ class ThermostatAccessory {
 			}
 	
 			if (body) {
-				// Set the Content-Length based on the body
 				headers['Content-Length'] = Buffer.byteLength(body);
 			}
 	
@@ -256,7 +264,7 @@ class ThermostatAccessory {
 				});
 	
 				res.on('end', () => {
-					this.log("Raw response data:", responseData);  // Log raw response data
+					this.log("Raw response data:", responseData);
 					try {
 						if (responseData) {
 							const parsedResponse = JSON.parse(responseData);
