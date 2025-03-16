@@ -87,7 +87,8 @@ class ThermostatAccessory {
 			const response = await this.makeHttpRequest({
 				url: this.apiGetTemperature,
 				method: 'GET',
-				token: this.apiGetToken
+				token: this.apiGetToken,
+				contentType: "application/json"
 			});
 	
 			// Log the entire response for debugging
@@ -130,16 +131,30 @@ class ThermostatAccessory {
 	
 		const url = this.apiSetTemperature.url;
 		const token = this.apiSetTemperature.token;
-		const postData = JSON.stringify({ temp: value });
+	
+		// Check the content type and prepare the body accordingly
+		let postData = null;
+	
+		if (this.apiContentType === 'application/x-www-form-urlencoded') {
+			// URL-encode the body for x-www-form-urlencoded content type
+			postData = querystring.stringify({ temp: value });
+		} else if (this.apiContentType === 'application/json') {
+			// JSON encode the body for application/json content type
+			postData = JSON.stringify({ temp: value });
+		} else {
+			// Handle other content types here if needed
+		}
 	
 		this.log(`Setting temperature to ${value}°C at ${url} with token: ${token}`);
+		this.log(`Request Body: ${postData}`);
 	
 		try {
 			const response = await this.makeHttpRequest({
 				url: url,
 				method: 'POST',
 				token: token,
-				body: postData
+				body: postData,
+				contentType: this.apiContentType // Set content type here
 			});
 	
 			this.log(`Temperature set response: ${JSON.stringify(response, null, 2)}`);
@@ -168,24 +183,35 @@ class ThermostatAccessory {
 	async setTargetHeatingCoolingState(value, callback) {
 		this.targetHeatingCoolingState = value;
 		this.log(`The new heating/cooling state is ${value}`);
-
+	
 		if (value === 0) {
 			this.log('Turning off heating/cooling system');
 		
 			const url = new URL(this.apiSetOFF);
-			
-			// Create the request body with the delay
-			const postData = JSON.stringify({ delay: 5 });
 		
+			// Prepare the request body based on the content type
+			let postData = null;
+	
+			if (this.apiContentType === 'application/x-www-form-urlencoded') {
+				// URL-encode the body for x-www-form-urlencoded content type
+				postData = querystring.stringify({ delay: 5 });
+			} else if (this.apiContentType === 'application/json') {
+				// JSON encode the body for application/json content type
+				postData = JSON.stringify({ delay: 5 });
+			} else {
+				// Handle other content types here if needed
+			}
+	
 			try {
-				// Make the HTTP request with the delay as the body
+				// Make the HTTP request with the appropriate body and content type
 				const response = await this.makeHttpRequest({
 					url: url.toString(),
 					method: this.apiSetOFFMethod,
 					token: this.apiSetOFFToken,
-					body: postData
+					body: postData,
+					contentType: this.apiContentType
 				});
-		
+	
 				// Check if the response is valid JSON and contains an error
 				try {
 					const parsedResponse = JSON.parse(response); // Try to parse it as JSON
@@ -193,22 +219,21 @@ class ThermostatAccessory {
 						this.log(`API Error: ${parsedResponse.error}`);
 						throw new Error(parsedResponse.error);
 					}
-		
+	
 					this.log(`Set heating/cooling to: ${this.targetHeatingCoolingState}`);
 					callback(null);
-		
+	
 				} catch (parseError) {
 					// If parsing fails, log raw response data
 					this.log(`Received raw response: ${response}`);
 					throw new Error('Invalid JSON response from API');
 				}
-		
+	
 			} catch (error) {
 				this.log(`Error setting heating/cooling state: ${error.message}`);
 				callback(error);
 			}
 		}
-
 		await this.saveState();
 		callback(null);
 	}
@@ -228,10 +253,10 @@ class ThermostatAccessory {
 		return new Promise((resolve, reject) => {
 			const parsedUrl = new URL(url);
 	
-			// Handle body encoding based on content type
-			if (contentType === 'application/x-www-form-urlencoded' && typeof body === 'object') {
+			// Handle body encoding only for non-GET requests
+			if (method !== 'GET' && contentType === 'application/x-www-form-urlencoded' && typeof body === 'object') {
 				body = querystring.stringify(body);  // URL-encode the body
-			} else if (contentType === 'application/json' && typeof body === 'object') {
+			} else if (method !== 'GET' && contentType === 'application/json' && typeof body === 'object') {
 				body = JSON.stringify(body);  // JSON encode the body
 			}
 	
@@ -250,7 +275,7 @@ class ThermostatAccessory {
 	
 			const options = {
 				hostname: parsedUrl.hostname,
-				path: parsedUrl.pathname + parsedUrl.search,
+				path: parsedUrl.pathname + parsedUrl.search, // Ensure query params are part of the path
 				method,
 				headers,
 				port: parsedUrl.port || 80,
@@ -285,7 +310,8 @@ class ThermostatAccessory {
 				reject(error);
 			});
 	
-			if (method === 'POST' && body) {
+			// For non-GET methods, or if body is present for non-GET, write the body
+			if (method !== 'GET' && body) {
 				this.log("Request Body: ", body);  // Log body before sending
 				req.write(body);
 			}
