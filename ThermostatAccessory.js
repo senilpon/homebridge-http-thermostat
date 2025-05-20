@@ -137,10 +137,10 @@ class ThermostatAccessory {
 	
 		if (this.apiContentType === 'application/x-www-form-urlencoded') {
 			// URL-encode the body for x-www-form-urlencoded content type
-			postData = querystring.stringify({ temp: value });
+			postData = querystring.stringify({ value: value });
 		} else if (this.apiContentType === 'application/json') {
 			// JSON encode the body for application/json content type
-			postData = JSON.stringify({ temp: value });
+			postData = JSON.stringify({ value: value });
 		} else {
 			// Handle other content types here if needed
 		}
@@ -194,10 +194,10 @@ class ThermostatAccessory {
 	
 			if (this.apiContentType === 'application/x-www-form-urlencoded') {
 				// URL-encode the body for x-www-form-urlencoded content type
-				postData = querystring.stringify({ delay: 5 });
+				postData = querystring.stringify({ value: 5 });
 			} else if (this.apiContentType === 'application/json') {
 				// JSON encode the body for application/json content type
-				postData = JSON.stringify({ delay: 5 });
+				postData = JSON.stringify({ value: 5 });
 			} else {
 				// Handle other content types here if needed
 			}
