@@ -1,9 +1,9 @@
-const ThermostatAccessory = require('./ThermostatAccessory');
+const ThermostatPlatform = require('./ThermostatPlatform');
 
 module.exports = (homebridge) => {
-	homebridge.registerAccessory(
-		'homebridge-http-thermostat-dummy',
-		'ThermostatAccessory',
-		ThermostatAccessory
-	);
+  homebridge.registerPlatform(
+    'homebridge-http-thermostat-dummy',
+    'ThermostatPlatform',
+    ThermostatPlatform
+  );
 };
