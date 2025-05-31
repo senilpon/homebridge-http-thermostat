@@ -1,6 +1,6 @@
 {
 	"name": "homebridge-http-thermostat-dummy",
-	"version": "2.2.8",
+	"version": "2.2.35",
 	"description": "A Homebridge plugin for a thermostat accessory.",
 	"main": "index.js",
 	"keywords": [
@@ -20,8 +20,14 @@
 		"url": "https://github.com/senilpon/homebridge-http-thermostat"
 	},
 	"homebridge": {
-		"pluginType": "accessory",
-		"accessory": "ThermostatAccessory"
+		"platforms": [
+			{
+			"platform": "ThermostatPlatform",
+			"plugin_map": {
+				"plugin_name": "homebridge-http-thermostat-dummy"
+			}
+			}
+		]
 	},
 	"dependencies": {
 		"node-persist": "^4.0.4"

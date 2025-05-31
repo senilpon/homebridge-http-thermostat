@@ -1,329 +1,302 @@
-const http = require('http'); 
-const storage = require('node-persist'); 
-const querystring = require('querystring'); 
+const http = require('http');
+const storage = require('node-persist');
+const querystring = require('querystring');
 
 class ThermostatAccessory {
-	constructor(log, config, api) {
-		if (!api || !api.hap) {
-			throw new Error('Homebridge API is not initialized. Check your setup.');
-		}
-	
-		const Service = api.hap.Service;
-		const Characteristic = api.hap.Characteristic;
-		this.log = log;
-		this.name = config.name;
-	
-		this.apiGetTemperature = config.apiGetTemperature;
-		this.apiSetTemperature = config.apiSetTemperature;
-	
-		this.apiSetOFF = config.apiSetOFF.url;
-		this.apiSetOFFMethod = config.apiSetOFF.method || 'POST';
-		this.apiSetOFFToken = config.apiSetOFF.token || null;
-		this.apiContentType = config.apiContentType || 'application/json';
-		this.apiGetToken = config.apiGetToken;
-	
-		this.targetHeatingCoolingState = 1;
-	
-		this.heatingOptions = {
-			0: 'OFF',
-			1: 'HEAT'
-		};
-		this.log('Characteristic.TargetHeatingCoolingState:', Characteristic.TargetHeatingCoolingState);
-		this.currentTemperature = 20; 
-		this.targetTemperature = 19;
-		this.temperatureDisplayUnits = 0;
-	
-		this.storageInitialized = false;
-		this.initStorage();
-		this.service = new Service.Thermostat(this.name);
-	
-		this.service
-			.getCharacteristic(Characteristic.CurrentTemperature)
-			.on('get', this.getCurrentTemperature.bind(this));
-	
-		this.service
-			.getCharacteristic(Characteristic.TargetTemperature)
-			.on('get', this.getTargetTemperature.bind(this))
-			.on('set', this.setTargetTemperature.bind(this));
-	
-		this.service
-			.getCharacteristic(Characteristic.TargetHeatingCoolingState)
-			.setProps({
-				validValues: [
-					Characteristic.TargetHeatingCoolingState.OFF,
-					Characteristic.TargetHeatingCoolingState.HEAT
-				],
-			})
-			.on('get', this.getTargetHeatingCoolingState.bind(this))
-			.on('set', this.setTargetHeatingCoolingState.bind(this));
+  constructor(platform, accessory, config) {
+    this.platform = platform;
+    this.log = platform.log;
+    this.config = config;
+    this.api = platform.api;
+    this.accessory = accessory;
 
-		this.makeHttpRequest = this.makeHttpRequest.bind(this);
-	}
+    this.Characteristic = this.api.hap.Characteristic;
+    const { Service, Characteristic } = this.api.hap;
 
-	async initStorage() {
-		try {
-			await storage.init();
-			this.currentTemperature = (await storage.getItem('currentTemperature')) || 20;
-			this.targetTemperature = (await storage.getItem('targetTemperature')) || 19;
-			this.targetHeatingCoolingState = (await storage.getItem('targetHeatingCoolingState')) || 0; 
+    this.service =
+      this.accessory.getService(Service.Thermostat) ||
+      this.accessory.addService(Service.Thermostat);
 
-			this.storageInitialized = true;
-			this.log(`Initialized storage: Current Temp: ${this.currentTemperature}, Target Temp: ${this.targetTemperature}, State: ${this.targetHeatingCoolingState}`);
-		} catch (error) {
-			this.log(`Error initializing storage: ${error.message}`);
-		}
-	}
+    this.apiGetTemperature = this.config.apiGetTemperature;
+    this.apiSetTemperature = this.config.apiSetTemperature;
 
-    // Fetch current temperature using GET request
-	async getCurrentTemperature(callback) {
-		if (!this.apiGetTemperature) {
-			this.log("Error: apiGetTemperature is not set!");
-			return callback(new Error("apiGetTemperature is not defined"));
-		}
-	
-		this.log(`Fetching temperature from: ${this.apiGetTemperature}`);
-	
-		try {
-			const response = await this.makeHttpRequest({
-				url: this.apiGetTemperature,
-				method: 'GET',
-				token: this.apiGetToken,
-				contentType: "application/json"
-			});
-	
-			// Log the entire response for debugging
-			this.log("API Response:", JSON.stringify(response, null, 2));
-	
-			// Check if response and response.data are valid
-			if (response && response.data && Array.isArray(response.data)) {
-				const temperatureData = response.data.find(item => item.name === 'temp');
-				if (temperatureData) {
-					this.currentTemperature = parseFloat(temperatureData.value) || 0;
-					this.log(`Fetched current temperature: ${this.currentTemperature}°C`);
-				} else {
-					this.currentTemperature = 0;
-					this.log("Temperature data not found in response");
-				}
-			} else {
-				this.currentTemperature = 0;
-				this.log("Invalid data format or missing data field in API response");
-			}
-	
-			callback(null, this.currentTemperature);
-		} catch (error) {
-			this.log(`Error fetching current temperature: ${error.message}`);
-			callback(error);
-		}
-	}
+    this.apiSetOFF = this.config.apiSetOFF.url;
+    this.apiSetOFFMethod = this.config.apiSetOFF.method || 'POST';
+    this.apiSetOFFToken = this.config.apiSetOFF.token || null;
+    this.apiContentType = this.config.apiContentType || 'application/json';
+    this.apiGetToken = this.config.apiGetToken;
 
-	// Return target temperature
-	getTargetTemperature(callback) {
-		this.log(`Returning target temperature: ${this.targetTemperature}`);
-		callback(null, this.targetTemperature);
-	}
+    this.targetHeatingCoolingState = 1;
 
-	// Set target temperature (POST request)
-	async setTargetTemperature(value, callback) {
-		if (!this.apiSetTemperature || !this.apiSetTemperature.url) {
-			this.log("Error: apiSetTemperature URL is not set!");
-			return callback(new Error("apiSetTemperature is not defined"));
-		}
-	
-		const url = this.apiSetTemperature.url;
-		const token = this.apiSetTemperature.token;
-	
-		// Check the content type and prepare the body accordingly
-		let postData = null;
-	
-		if (this.apiContentType === 'application/x-www-form-urlencoded') {
-			// URL-encode the body for x-www-form-urlencoded content type
-			postData = querystring.stringify({ value: value });
-		} else if (this.apiContentType === 'application/json') {
-			// JSON encode the body for application/json content type
-			postData = JSON.stringify({ value: value });
-		} else {
-			// Handle other content types here if needed
-		}
-	
-		this.log(`Setting temperature to ${value}°C at ${url} with token: ${token}`);
-		this.log(`Request Body: ${postData}`);
-	
-		try {
-			const response = await this.makeHttpRequest({
-				url: url,
-				method: 'POST',
-				token: token,
-				body: postData,
-				contentType: this.apiContentType // Set content type here
-			});
-	
-			this.log(`Temperature set response: ${JSON.stringify(response, null, 2)}`);
-	
-			if (response && response.status === "success") {
-				this.log("Temperature successfully updated!");
-				this.targetTemperature = value;
-			} else {
-				this.log("Warning: API did not confirm temperature change.");
-			}
-	
-			callback(null);
-		} catch (error) {
-			this.log(`Error setting temperature: ${error.message}`);
-			callback(error);
-		}
-	
-		await this.saveState();
-	}
+    this.heatingOptions = {
+      0: 'OFF',
+      1: 'HEAT'
+    };
 
-	getTargetHeatingCoolingState(callback) {
-		this.log(`Returning target heating/cooling state: ${this.heatingOptions[this.targetHeatingCoolingState]}`);
-		callback(null, this.targetHeatingCoolingState);
-	}
+    this.currentTemperature = 20;
+    this.targetTemperature = 19;
+    this.temperatureDisplayUnits = 0;
 
-	async setTargetHeatingCoolingState(value, callback) {
-		this.targetHeatingCoolingState = value;
-		this.log(`The new heating/cooling state is ${value}`);
-	
-		if (value === 0) {
-			this.log('Turning off heating/cooling system');
-		
-			const url = new URL(this.apiSetOFF);
-		
-			// Prepare the request body based on the content type
-			let postData = null;
-	
-			if (this.apiContentType === 'application/x-www-form-urlencoded') {
-				// URL-encode the body for x-www-form-urlencoded content type
-				postData = querystring.stringify({ value: 5 });
-			} else if (this.apiContentType === 'application/json') {
-				// JSON encode the body for application/json content type
-				postData = JSON.stringify({ value: 5 });
-			} else {
-				// Handle other content types here if needed
-			}
-	
-			try {
-				// Make the HTTP request with the appropriate body and content type
-				const response = await this.makeHttpRequest({
-					url: url.toString(),
-					method: this.apiSetOFFMethod,
-					token: this.apiSetOFFToken,
-					body: postData,
-					contentType: this.apiContentType
-				});
-	
-				// Check if the response is valid JSON and contains an error
-				try {
-					const parsedResponse = JSON.parse(response); // Try to parse it as JSON
-					if (parsedResponse.error) {
-						this.log(`API Error: ${parsedResponse.error}`);
-						throw new Error(parsedResponse.error);
-					}
-	
-					this.log(`Set heating/cooling to: ${this.targetHeatingCoolingState}`);
-					callback(null);
-	
-				} catch (parseError) {
-					// If parsing fails, log raw response data
-					this.log(`Received raw response: ${response}`);
-					throw new Error('Invalid JSON response from API');
-				}
-	
-			} catch (error) {
-				this.log(`Error setting heating/cooling state: ${error.message}`);
-				callback(error);
-			}
-		}
-		await this.saveState();
-		callback(null);
-	}
+    this.currentHeatingCoolingState = 0; // OFF
+    this.storageInitialized = false;
 
-	// Save state to persistent storage
-	async saveState() {
-		if (!this.storageInitialized) return;
+    this.initStorage();
 
-		await storage.setItem('currentTemperature', this.currentTemperature);
-		await storage.setItem('targetTemperature', this.targetTemperature);
-		await storage.setItem('targetHeatingCoolingState', this.targetHeatingCoolingState);
+    this.service
+      .getCharacteristic(Characteristic.CurrentHeatingCoolingState)
+      .onGet(this.getCurrentHeatingCoolingState.bind(this));
 
-		this.log('State saved');
-	}
+    this.service
+      .getCharacteristic(Characteristic.CurrentTemperature)
+      .onGet(this.getCurrentTemperature.bind(this));
 
-	makeHttpRequest({ url, method = 'GET', token = null, body = null, contentType = 'application/json' }) {
-		return new Promise((resolve, reject) => {
-			const parsedUrl = new URL(url);
-	
-			// Handle body encoding only for non-GET requests
-			if (method !== 'GET' && contentType === 'application/x-www-form-urlencoded' && typeof body === 'object') {
-				body = querystring.stringify(body);  // URL-encode the body
-			} else if (method !== 'GET' && contentType === 'application/json' && typeof body === 'object') {
-				body = JSON.stringify(body);  // JSON encode the body
-			}
-	
-			// Set headers dynamically
-			const headers = {
-				'Content-Type': contentType,
-			};
-	
-			if (token) {
-				headers['Authorization'] = `Bearer ${token}`;
-			}
-	
-			if (body) {
-				headers['Content-Length'] = Buffer.byteLength(body);
-			}
-	
-			const options = {
-				hostname: parsedUrl.hostname,
-				path: parsedUrl.pathname + parsedUrl.search, // Ensure query params are part of the path
-				method,
-				headers,
-				port: parsedUrl.port || 80,
-			};
-	
-			const req = http.request(options, (res) => {
-				let responseData = '';
-	
-				res.on('data', (chunk) => {
-					responseData += chunk;
-				});
-	
-				res.on('end', () => {
-					this.log("Raw response data:", responseData);
-					try {
-						if (responseData) {
-							const parsedResponse = JSON.parse(responseData);
-							this.log("Parsed response:", JSON.stringify(parsedResponse, null, 2));
-							resolve(parsedResponse);
-						} else {
-							reject(new Error("No response data received"));
-						}
-					} catch (error) {
-						this.log(`Error parsing response: ${error.message}`);
-						reject(new Error(`Invalid JSON response: ${responseData}`));
-					}
-				});
-			});
-	
-			req.on('error', (error) => {
-				this.log(`Request error: ${error.message}`);
-				reject(error);
-			});
-	
-			// For non-GET methods, or if body is present for non-GET, write the body
-			if (method !== 'GET' && body) {
-				this.log("Request Body: ", body);  // Log body before sending
-				req.write(body);
-			}
-	
-			req.end();
-		});
-	}
+    this.service
+      .getCharacteristic(Characteristic.TargetTemperature)
+      .onGet(this.getTargetTemperature.bind(this))
+      .onSet(value => {
+        this.log(`[DEBUG] onSet triggered with value: ${value}`);
+        this.setTargetTemperature(value);
+      });
 
-	// Return the service
-	getServices() {
-		return [this.service];
-	}
+    this.service
+      .getCharacteristic(Characteristic.TargetHeatingCoolingState)
+      .setProps({
+        validValues: [
+          Characteristic.TargetHeatingCoolingState.OFF,
+          Characteristic.TargetHeatingCoolingState.HEAT
+        ],
+      })
+      .onGet(this.getTargetHeatingCoolingState.bind(this))
+      .onSet(this.setTargetHeatingCoolingState.bind(this));
+
+    this.service
+      .getCharacteristic(Characteristic.TemperatureDisplayUnits)
+      .onGet(() => this.temperatureDisplayUnits);
+
+    this.makeHttpRequest = this.makeHttpRequest.bind(this);
+
+    this.service.updateCharacteristic(Characteristic.CurrentTemperature, this.currentTemperature);
+    this.service.updateCharacteristic(Characteristic.CurrentHeatingCoolingState, this.currentHeatingCoolingState);
+
+    this.startPolling();
+  }
+
+  startPolling() {
+    const pollInterval = this.config.pollInterval || 60; // seconds
+    this.log(`Starting temperature polling every ${pollInterval} seconds`);
+
+    setInterval(async () => {
+      try {
+        const temp = await this.getCurrentTemperature();
+        this.currentTemperature = temp;
+        this.service
+          .updateCharacteristic(this.Characteristic.CurrentTemperature, temp);
+        this.log(`Updated HomeKit temperature to ${temp}°C`);
+      } catch (error) {
+        this.log(`Polling error: ${error.stack || error.message}`);
+      }
+    }, pollInterval * 1000);
+  }
+
+  async initStorage() {
+    try {
+      await storage.init();
+      this.currentTemperature = (await storage.getItem('currentTemperature')) || 20;
+      this.targetTemperature = (await storage.getItem('targetTemperature')) || 19;
+      this.targetHeatingCoolingState = (await storage.getItem('targetHeatingCoolingState')) || 0;
+
+      this.storageInitialized = true;
+      this.log(`Initialized storage: Current Temp: ${this.currentTemperature}, Target Temp: ${this.targetTemperature}, State: ${this.targetHeatingCoolingState}`);
+      await this.getCurrentTemperature(); // force-fetch at init
+    } catch (error) {
+      this.log(`Error initializing storage: ${error.message}`);
+    }
+  }
+
+  getCurrentHeatingCoolingState() {
+    this.log(`Returning current heating/cooling state: ${this.currentHeatingCoolingState}`);
+    return this.currentHeatingCoolingState;
+  }
+
+  async getCurrentTemperature() {
+    if (!this.apiGetTemperature) {
+      this.log("Error: apiGetTemperature is not set!");
+      throw new this.api.hap.HapStatusError(this.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE);
+    }
+
+    this.log(`Fetching temperature from: ${this.apiGetTemperature}`);
+
+    try {
+      const response = await this.makeHttpRequest({
+        url: this.apiGetTemperature,
+        method: 'GET',
+        token: this.apiGetToken,
+        contentType: "application/json"
+      });
+
+      this.log("API Response:", JSON.stringify(response, null, 2));
+
+      if (response && response.data && Array.isArray(response.data)) {
+        const temperatureData = response.data.find(item => item.name === 'temp');
+        if (temperatureData) {
+          const tempVal = parseFloat(temperatureData.value);
+          this.currentTemperature = isNaN(tempVal) ? 0 : tempVal;
+        } else {
+          this.currentTemperature = 0;
+        }
+      } else {
+        this.currentTemperature = 0;
+      }
+
+      return this.currentTemperature;
+    } catch (error) {
+      this.log(`Error fetching current temperature: ${error.message}`);
+      throw new this.api.hap.HapStatusError(this.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE);
+    }
+  }
+
+  getTargetTemperature() {
+    this.log(`Returning target temperature: ${this.targetTemperature}`);
+    return this.targetTemperature;
+  }
+
+  async setTargetTemperature(value) {
+    this.log(`HomeKit requested new target temperature: ${value}°C`);
+
+    let body;
+    if (this.apiContentType === 'application/x-www-form-urlencoded') {
+      body = { value }; // let makeHttpRequest encode it
+    } else if (typeof this.apiSetTemperature.body === 'string') {
+      body = JSON.parse(this.apiSetTemperature.body.replace('{{value}}', value));
+    } else {
+      body = { value };
+}
+    this.log.debug(`[Thermostat] Body (final): ${body}`);
+    this.log.debug(`[Thermostat] Content-Type: ${this.apiContentType}`);
+    try {
+      await this.makeHttpRequest({
+        url: this.apiSetTemperature.url,
+        method: this.apiSetTemperature.method || 'POST',
+        token: this.apiSetTemperature.token || null,
+        contentType: this.apiContentType,
+        body
+      });
+
+      this.targetTemperature = value;
+      this.service.updateCharacteristic(this.Characteristic.TargetTemperature, value);
+      await this.saveState();
+    } catch (error) {
+      this.log(`Failed to set temperature: ${error.message}`);
+    }
+  }
+
+  getTargetHeatingCoolingState() {
+    return this.targetHeatingCoolingState;
+  }
+
+  async setTargetHeatingCoolingState(value) {
+    this.targetHeatingCoolingState = value;
+    this.log(`The new heating/cooling state is ${value}`);
+
+    this.currentHeatingCoolingState = value;
+    this.service.updateCharacteristic(this.Characteristic.CurrentHeatingCoolingState, value);
+
+    if (value === 0) {
+      const url = new URL(this.apiSetOFF);
+      const postData = this.apiContentType === 'application/x-www-form-urlencoded'
+        ? querystring.stringify({ value: 5 })
+        : JSON.stringify({ value: 5 });
+
+      try {
+        const response = await this.makeHttpRequest({
+          url: url.toString(),
+          method: this.apiSetOFFMethod,
+          token: this.apiSetOFFToken,
+          body: postData,
+          contentType: this.apiContentType
+        });
+
+        const parsedResponse = typeof response === 'string' ? JSON.parse(response) : response;
+        if (parsedResponse.error) {
+          this.log(`API Error: ${parsedResponse.error}`);
+          throw new Error(parsedResponse.error);
+        }
+
+        this.log(`Set heating/cooling to: OFF`);
+      } catch (error) {
+        this.log(`Error setting heating/cooling state: ${error.message}`);
+        throw error;
+      }
+    }
+
+    await this.saveState();
+  }
+
+  async saveState() {
+    if (!this.storageInitialized) return;
+
+    await storage.setItem('currentTemperature', this.currentTemperature);
+    await storage.setItem('targetTemperature', this.targetTemperature);
+    await storage.setItem('targetHeatingCoolingState', this.targetHeatingCoolingState);
+
+    this.log('State saved');
+  }
+
+  makeHttpRequest({ url, method = 'GET', token = null, body = null, contentType = 'application/json' }) {
+    return new Promise((resolve, reject) => {
+      const parsedUrl = new URL(url);
+
+      if (method !== 'GET') {
+        if (contentType === 'application/x-www-form-urlencoded' && typeof body === 'object') {
+          body = querystring.stringify(body); // value=18
+        } else if (contentType === 'application/json' && typeof body === 'object') {
+          body = JSON.stringify(body); // { "value": 18 }
+        }
+      }
+
+      const headers = {
+        'Content-Type': contentType
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      if (body && method !== 'GET') {
+        headers['Content-Length'] = Buffer.byteLength(body);
+      }
+
+      const options = {
+        hostname: parsedUrl.hostname,
+        port: parsedUrl.port || 80,
+        path: parsedUrl.pathname + parsedUrl.search,
+        method,
+        headers,
+      };
+
+      const req = http.request(options, res => {
+        let data = '';
+        res.on('data', chunk => data += chunk);
+        res.on('end', () => {
+          this.log.debug(`[Thermostat] HTTP ${res.statusCode} ${data}`);
+          try {
+            resolve(JSON.parse(data));
+          } catch (e) {
+            resolve(data); // fallback to raw
+          }
+        });
+      });
+
+      req.on('error', error => {
+        this.log.error(`[Thermostat] HTTP error: ${error.message}`);
+        reject(error);
+      });
+
+      if (body && method !== 'GET') {
+        req.write(body);
+      }
+
+      req.end();
+    });
+  }
 }
 
 module.exports = ThermostatAccessory;

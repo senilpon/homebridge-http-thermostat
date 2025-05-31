@@ -7,25 +7,38 @@ class ThermostatPlatform {
     this.api = api;
     this.accessories = [];
 
-    this.api.on('didFinishLaunching', () => {
-      const uuid = this.api.hap.uuid.generate(this.config.name);
-      const existingAccessory = this.accessories.find(a => a.UUID === uuid);
+    if (!config || !config.accessories || !Array.isArray(config.accessories)) {
+      this.log('No accessories configured.');
+      return;
+    }
 
-      if (!existingAccessory) {
-        const accessory = new this.api.platformAccessory(this.config.name, uuid);
-        new ThermostatAccessory(this, accessory, this.config);
-        this.api.registerPlatformAccessories(
-          'homebridge-http-thermostat-dummy',
-          'ThermostatPlatform',
-          [accessory]
-        );
-      }
+    this.api.on('didFinishLaunching', () => {
+      this.log('DidFinishLaunching - registering accessories...');
+      this.config.accessories.forEach(deviceConfig => {
+        this.addAccessory(deviceConfig);
+      });
     });
   }
 
   configureAccessory(accessory) {
-    this.accessories.push(accessory);
-    new ThermostatAccessory(this, accessory, this.config);
+    this.log(`Loading accessory from cache: ${accessory.displayName}`);
+    this.accessories.push(accessory); // <-- Add this
+  }
+
+  addAccessory(deviceConfig) {
+    const uuid = this.api.hap.uuid.generate(deviceConfig.name);
+    const existingAccessory = this.accessories.find(acc => acc.UUID === uuid);
+
+    if (existingAccessory) {
+      this.log(`Restoring existing accessory: ${deviceConfig.name}`);
+      new ThermostatAccessory(this, existingAccessory, deviceConfig);
+    } else {
+      this.log(`Adding new accessory: ${deviceConfig.name}`);
+      const accessory = new this.api.platformAccessory(deviceConfig.name, uuid);
+      new ThermostatAccessory(this, accessory, deviceConfig);
+
+      this.api.registerPlatformAccessories('homebridge-http-thermostat-dummy', 'ThermostatPlatform', [accessory]);
+    }
   }
 }
 
